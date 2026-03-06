@@ -1,8 +1,12 @@
+const path = require('path');
+require('dotenv').config({
+  path: path.resolve(__dirname, '.env'),
+});
+
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const { spawn } = require('child_process');
-const path = require('path');
+
 const connectDB = require('./src/config/db');
 
 const authRoutes = require('./src/routes/authRoutes');
@@ -10,9 +14,9 @@ const spaceRoutes = require('./src/routes/spaceRoutes');
 const bookingRoutes = require('./src/routes/bookingRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 
-dotenv.config();
 
 const app = express();
+
 app.use(express.json());
 app.use(
   cors({
@@ -68,7 +72,7 @@ const createAdminUser = () => {
 };
 
 const startServer = async () => {
-  await connectDB(MONGODB_URI);
+  await connectDB(process.env.MONGODB_URI);
   console.log('Database connected');
 
   // Create admin user if not exists

@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const ParkingSpace = require('../models/ParkingSpace');
+const ParkingSpace = require('../models/Space');
 
 // Get all pending verifications
 exports.getPendingVerifications = async (req, res) => {
