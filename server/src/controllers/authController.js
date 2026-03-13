@@ -1,5 +1,11 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { 
+  sendKYCSubmittedNotificationToAdmin,
+  sendKYCApprovedEmail,
+  sendKYCRejectedEmail,
+  sendDocumentRequestEmail
+} = require('../utils/emailService');
 
 const getJwtSecret = () => {
   if (!process.env.JWT_SECRET) {
@@ -144,34 +150,69 @@ exports.uploadKycFiles = (req, res, next) => {
 
 exports.uploadKYC = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user._id;
     const { files } = req;
     
-    if (!files || files.length === 0) {
-      return res.status(400).json({ message: 'No files uploaded' });
+    if (!files || !files.identityProof || !files.addressProof) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Both identity proof and address proof are required' 
+      });
     }
+
+    const identityFile = files.identityProof[0];
+    const addressFile = files.addressProof[0];
+
+    // Store file paths in database
+    const kycDocuments = [
+      {
+        type: 'aadhar',
+        url: identityFile.path,
+        filename: identityFile.filename,
+        originalName: identityFile.originalname,
+        mimeType: identityFile.mimetype,
+        uploadedAt: new Date(),
+      },
+      {
+        type: 'other',
+        url: addressFile.path,
+        filename: addressFile.filename,
+        originalName: addressFile.originalname,
+        mimeType: addressFile.mimetype,
+        uploadedAt: new Date(),
+      }
+    ];
 
     // Update user's KYC status to 'pending'
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { 
         kycStatus: 'pending',
-        kycFiles: files.map(file => ({
-          url: file.path,
-          type: file.mimetype,
-          originalName: file.originalname
-        }))
+        kycDocuments: kycDocuments,
+        $set: { kycSubmittedAt: new Date() }
       },
       { new: true }
     );
 
+    // Send email notification to admin
+    try {
+      await sendKYCSubmittedNotificationToAdmin(updatedUser.name, updatedUser.email, updatedUser.role);
+    } catch (emailError) {
+      console.error('Failed to send admin notification:', emailError.message);
+      // Don't fail the upload if email fails
+    }
+
     res.status(200).json({ 
-      message: 'KYC documents uploaded successfully',
+      success: true,
+      message: 'KYC documents uploaded successfully. Your submission is now pending verification.',
       user: sanitizeUser(updatedUser)
     });
   } catch (error) {
     console.error('Error in uploadKYC:', error);
-    res.status(500).json({ message: 'Error processing KYC upload' });
+    res.status(500).json({ 
+      success: false,
+      message: error.message || 'Error processing KYC upload' 
+    });
   }
 };
 
@@ -190,7 +231,7 @@ exports.getPendingKYC = async (req, res) => {
 exports.updateKYCStatus = async (req, res) => {
   try {
     const { kycId } = req.params;
-    const { status } = req.body;
+    const { status, rejectionReason } = req.body;
 
     if (!['approved', 'rejected'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status. Must be either "approved" or "rejected"' });
@@ -204,6 +245,22 @@ exports.updateKYCStatus = async (req, res) => {
 
     if (!updatedUser) {
       return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Send appropriate email based on status
+    try {
+      if (status === 'approved') {
+        await sendKYCApprovedEmail(updatedUser.email, updatedUser.name);
+      } else if (status === 'rejected') {
+        await sendKYCRejectedEmail(
+          updatedUser.email, 
+          updatedUser.name, 
+          rejectionReason || 'Your KYC documents did not meet our requirements.'
+        );
+      }
+    } catch (emailError) {
+      console.error('Failed to send status email:', emailError.message);
+      // Continue even if email fails
     }
 
     res.status(200).json({

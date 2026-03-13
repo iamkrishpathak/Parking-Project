@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../api/client';
 
 const HostKYC = () => {
   const [identityProof, setIdentityProof] = useState(null);
@@ -9,6 +9,7 @@ const HostKYC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [approvalDeadline, setApprovalDeadline] = useState(null);
 
   const handleFileChange = (e, type) => {
     const file = e.target.files[0];
@@ -40,13 +41,26 @@ const HostKYC = () => {
       formData.append('identityProof', identityProof);
       formData.append('addressProof', addressProof);
 
-      const response = await axios.post('/api/auth/kyc-upload', formData, {
+      // Get token from localStorage
+      const token = localStorage.getItem('parksetu_token');
+      
+      if (!token) {
+        setError('Session expired. Please login again.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const response = await api.post('/api/auth/kyc-upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`
         },
       });
 
-      if (response.data.success) {
+      if (response.data.success || response.status === 200) {
+        // Set deadline to 24 hours from now
+        const deadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        setApprovalDeadline(deadline);
         setShowSuccess(true);
         setIdentityProof(null);
         setAddressProof(null);
@@ -54,7 +68,8 @@ const HostKYC = () => {
         setAddressPreview(null);
       }
     } catch (err) {
-      setError('Upload failed. Please try again.');
+      const errorMsg = err.response?.data?.message || err.message || 'Upload failed. Please try again.';
+      setError(errorMsg);
       console.error('KYC upload error:', err);
     } finally {
       setIsSubmitting(false);
@@ -72,23 +87,48 @@ const HostKYC = () => {
   };
 
   if (showSuccess) {
+    const formatTime = (date) => {
+      return date.toLocaleString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Asia/Kolkata'
+      });
+    };
+
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
-          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-            <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center animate-in fade-in duration-300">
+          <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+            <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Pending Approval</h2>
-          <p className="text-gray-600 mb-6">
-            Your KYC documents have been successfully uploaded and are pending approval. You will be notified once the verification is complete.
-          </p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">Documents Uploaded!</h2>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <p className="text-blue-900 font-semibold mb-2">Status: Pending Admin Verification</p>
+            <p className="text-sm text-blue-700 mb-3">
+              Your KYC documents have been successfully uploaded and are pending approval from our admin.
+            </p>
+            <div className="bg-white rounded p-3">
+              <p className="text-xs text-gray-600 mb-1">Expected Decision By:</p>
+              <p className="text-sm font-mono font-semibold text-gray-900">{approvalDeadline ? formatTime(approvalDeadline) : 'Within 24 hours'}</p>
+            </div>
+          </div>
+          
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+            <p className="text-sm text-amber-900">
+              <span className="font-semibold">Note:</span> You'll receive an email notification once your documents are verified. The admin may request additional documents if needed.
+            </p>
+          </div>
+
           <button
             onClick={() => setShowSuccess(false)}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-200"
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-4 rounded-lg hover:shadow-lg transition duration-200 font-medium"
           >
-            Upload Another Document
+            Back to Dashboard
           </button>
         </div>
       </div>

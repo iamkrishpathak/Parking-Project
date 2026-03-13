@@ -1,236 +1,233 @@
 import React, { useState, useEffect } from 'react';
-import axios from '../api/client';
-import { useAuth } from '../context/AuthContext';
+import api from '../api/client';
+import KYCVerificationModal from '../components/KYCVerificationModal';
 
 const AdminDashboard = () => {
-  const { user } = useAuth();
-  const [pendingKycs, setPendingKycs] = useState([]);
+  const [pendingKYC, setPendingKYC] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedKyc, setSelectedKyc] = useState(null);
-  const [rejectReason, setRejectReason] = useState('');
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [selectedKYC, setSelectedKYC] = useState(null);
+  const [filterRole, setFilterRole] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    fetchPendingKycs();
+    fetchPendingKYC();
   }, []);
 
-  const fetchPendingKycs = async () => {
+  const fetchPendingKYC = async () => {
     try {
-      const { data } = await axios.get('/api/auth/admin/pending-kyc');
-      setPendingKycs(data);
-    } catch (error) {
-      console.error('Error fetching pending KYCs:', error);
-      setMessage('Failed to fetch pending KYC applications');
+      setLoading(true);
+      setError('');
+      const response = await api.get('/api/auth/admin/pending-kyc');
+      setPendingKYC(response.data || []);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch pending KYC requests');
+      console.error('Fetch error:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleApprove = async (kycId) => {
+  const handleApprove = async (userId, documents) => {
     try {
-      await axios.put(`/api/auth/admin/kyc/${kycId}/status`, { 
-        status: 'verified',
-        reviewed_by: user._id 
+      await api.put(`/api/auth/admin/kyc/${userId}/status`, {
+        status: 'approved',
+        documents: documents
       });
-      setMessage('KYC approved successfully');
-      fetchPendingKycs();
-    } catch (error) {
-      console.error('Error approving KYC:', error);
-      setMessage('Failed to approve KYC');
+      await fetchPendingKYC();
+      setSelectedKYC(null);
+      alert('KYC Approved Successfully!');
+    } catch (err) {
+      alert('Error approving KYC: ' + (err.response?.data?.message || err.message));
     }
   };
 
-  const handleReject = async () => {
-    if (!rejectReason.trim()) {
-      setMessage('Please provide a reason for rejection');
-      return;
-    }
-
+  const handleReject = async (userId, reason) => {
     try {
-      await axios.put(`/api/auth/admin/kyc/${selectedKyc._id}/status`, { 
+      await api.put(`/api/auth/admin/kyc/${userId}/status`, {
         status: 'rejected',
-        rejection_reason: rejectReason,
-        reviewed_by: user._id 
+        rejectionReason: reason
       });
-      setMessage('KYC rejected successfully');
-      setShowRejectModal(false);
-      setRejectReason('');
-      setSelectedKyc(null);
-      fetchPendingKycs();
-    } catch (error) {
-      console.error('Error rejecting KYC:', error);
-      setMessage('Failed to reject KYC');
+      await fetchPendingKYC();
+      setSelectedKYC(null);
+      alert('KYC Rejected');
+    } catch (err) {
+      alert('Error rejecting KYC: ' + (err.response?.data?.message || err.message));
     }
   };
 
-  const openRejectModal = (kyc) => {
-    setSelectedKyc(kyc);
-    setShowRejectModal(true);
+  const handleRequestDocuments = async (userId, requestDetails) => {
+    try {
+      await api.put(`/api/auth/admin/kyc/${userId}/request-docs`, requestDetails);
+      await fetchPendingKYC();
+      setSelectedKYC(null);
+      alert('Request sent to user');
+    } catch (err) {
+      alert('Error sending request: ' + (err.response?.data?.message || err.message));
+    }
   };
 
-  const closeRejectModal = () => {
-    setShowRejectModal(false);
-    setRejectReason('');
-    setSelectedKyc(null);
-  };
-
-  const getDocumentUrl = (doc) => {
-    return `http://localhost:5000${doc.document_url}`;
-  };
+  // Filter and search
+  const filteredKYC = pendingKYC
+    .filter(kyc => {
+      if (filterRole !== 'all' && kyc.role !== filterRole) return false;
+      if (searchTerm && !kyc.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+          !kyc.email.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return false;
+      }
+      return true;
+    });
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading KYC applications...</p>
+          <p className="text-gray-600">Loading KYC requests...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-gray-600 mt-2">Review and verify KYC applications</p>
+          <p className="text-gray-600 mt-2">Manage KYC verifications and user requests</p>
         </div>
 
-        {message && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-blue-800">{message}</p>
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="bg-white rounded-lg shadow p-6">
+            <p className="text-gray-600 text-sm">Pending Verifications</p>
+            <p className="text-3xl font-bold text-blue-600">{filteredKYC.length}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <p className="text-gray-600 text-sm">Total Users</p>
+            <p className="text-3xl font-bold text-green-600">{pendingKYC.length}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <p className="text-gray-600 text-sm">Parking Owners</p>
+            <p className="text-3xl font-bold text-purple-600">
+              {pendingKYC.filter(k => k.role === 'host').length}
+            </p>
+          </div>
+        </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-700">{error}</p>
           </div>
         )}
 
-        <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Pending KYC Applications ({pendingKycs.length})
-            </h2>
+        {/* Filters */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Search by Name or Email
+              </label>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filter by Role
+              </label>
+              <select
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">All Roles</option>
+                <option value="host">Parking Owner</option>
+                <option value="driver">Driver</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={fetchPendingKYC}
+                className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+              >
+                Refresh
+              </button>
+            </div>
           </div>
+        </div>
 
-          {pendingKycs.length === 0 ? (
-            <div className="p-8 text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-                <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No pending applications</h3>
-              <p className="text-gray-600">All KYC applications have been reviewed.</p>
+        {/* KYC Requests Table */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          {filteredKYC.length === 0 ? (
+            <div className="p-12 text-center">
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <p className="mt-4 text-gray-600 font-medium">No pending KYC requests</p>
+              <p className="text-gray-500 text-sm">All verifications are up to date!</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
-              {pendingKycs.map((kycGroup) => (
-                <div key={kycGroup.provider_id._id} className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center mb-4">
-                        <div className="flex-shrink-0">
-                          <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                            <span className="text-sm font-medium text-gray-600">
-                              {kycGroup.provider_id.name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="ml-4">
-                          <h3 className="text-lg font-medium text-gray-900">
-                            {kycGroup.provider_id.name}
-                          </h3>
-                          <p className="text-sm text-gray-600">{kycGroup.provider_id.email}</p>
-                          <p className="text-sm text-gray-600">{kycGroup.provider_id.phone}</p>
-                        </div>
-                      </div>
-
-                      <div className="grid md:grid-cols-2 gap-6">
-                        {kycGroup.documents.map((doc) => (
-                          <div key={doc._id} className="border rounded-lg p-4">
-                            <h4 className="font-medium text-gray-900 mb-2">
-                              {doc.document_type === 'aadhaar' ? 'Identity Proof (Aadhaar)' : 'Address Proof (Electricity Bill)'}
-                            </h4>
-                            <p className="text-sm text-gray-600 mb-3">{doc.original_filename}</p>
-                            
-                            {doc.document_url.match(/\.(jpg|jpeg|png|gif)$/i) ? (
-                              <img
-                                src={getDocumentUrl(doc)}
-                                alt={doc.document_type}
-                                className="w-full h-48 object-cover rounded cursor-pointer hover:opacity-90"
-                                onClick={() => window.open(getDocumentUrl(doc), '_blank')}
-                              />
-                            ) : (
-                              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                                <p className="text-sm text-gray-600 mt-2">PDF Document</p>
-                                <button
-                                  onClick={() => window.open(getDocumentUrl(doc), '_blank')}
-                                  className="mt-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
-                                >
-                                  View Document
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="ml-6 flex flex-col space-y-2">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Email</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Role</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Submitted</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredKYC.map((kyc) => (
+                  <tr key={kyc._id} className="hover:bg-gray-50 transition">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{kyc.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{kyc.email}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                        {kyc.role === 'host' ? 'Parking Owner' : 'Driver'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {kyc.kycSubmittedAt ? new Date(kyc.kycSubmittedAt).toLocaleDateString() : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                        {kyc.kycStatus}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <button
-                        onClick={() => handleApprove(kycGroup.documents[0]._id)}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                        onClick={() => setSelectedKYC(kyc)}
+                        className="text-blue-600 hover:text-blue-900 font-medium"
                       >
-                        Approve
+                        Review
                       </button>
-                      <button
-                        onClick={() => openRejectModal(kycGroup.documents[0])}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       </div>
 
-      {/* Reject Modal */}
-      {showRejectModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Reject KYC Application</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Please provide a reason for rejecting this KYC application.
-            </p>
-            <textarea
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              rows={4}
-              placeholder="Enter rejection reason..."
-            />
-            <div className="flex gap-3 mt-4">
-              <button
-                onClick={closeRejectModal}
-                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleReject}
-                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
-              >
-                Reject
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* KYC Verification Modal */}
+      {selectedKYC && (
+        <KYCVerificationModal
+          kyc={selectedKYC}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          onRequestDocuments={handleRequestDocuments}
+          onClose={() => setSelectedKYC(null)}
+        />
       )}
     </div>
   );

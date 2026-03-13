@@ -39,6 +39,10 @@ const userSchema = new mongoose.Schema(
       enum: ['pending', 'approved', 'rejected'],
       default: 'pending',
     },
+    kycSubmittedAt: {
+      type: Date,
+      default: null,
+    },
     kycDocuments: [{
       type: {
         type: String,
@@ -46,6 +50,18 @@ const userSchema = new mongoose.Schema(
         required: true,
       },
       url: {
+        type: String,
+        required: true,
+      },
+      filename: {
+        type: String,
+        required: true,
+      },
+      originalName: {
+        type: String,
+        required: true,
+      },
+      mimeType: {
         type: String,
         required: true,
       },

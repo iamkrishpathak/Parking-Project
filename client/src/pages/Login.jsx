@@ -24,7 +24,15 @@ const Login = () => {
       const { data } = await api.post('/api/auth/login', { email: form.email, password: form.password });
       console.log('Login successful:', data);
       login(data);
-      navigate('/driver');
+      
+      // Role-based navigation
+      if (data.user.role === 'admin') {
+        navigate('/admin');
+      } else if (data.user.role === 'host') {
+        navigate('/host');
+      } else {
+        navigate('/driver');
+      }
     } catch (err) {
       console.error('Login error:', err);
       console.error('Error response:', err.response?.data);
