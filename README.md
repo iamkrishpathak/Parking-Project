@@ -36,7 +36,7 @@ cd Parking-Project
 Navigate to the server directory and create a `.env` file:
 ```bash
 cd server
-cp .env.example .env
+cp server/.env.example server/.env
 ```
 
 Edit `.env` and fill in your values:
@@ -61,8 +61,6 @@ EMAIL_FROM=noreply@parkbandhu.com
 # Admin Email
 ADMIN_EMAIL=admin@example.com
 ```
-
-**Note**: For Gmail, use an [App Password](https://support.google.com/accounts/answer/185833) instead of your regular password.
 
 ### 3. Client Environment Configuration
 
@@ -163,7 +161,7 @@ Parking-Project/
 └── README.md                # This file
 ```
 
-## 🔐 Default Admin Account
+## 🔐 Default Admin Account (Working upon it right now)
 
 After setup, create an admin user using the provided script:
 ```bash
@@ -213,27 +211,6 @@ If port 5001 or 3000 is already in use, you can change the port:
 - Check if MongoDB Atlas is allowing connections from your IP
 - Verify username and password are correct
 
-### Email Not Sending
-- Enable "Less secure apps" or use an [App Password](https://support.google.com/accounts/answer/185833)
-- Check `EMAIL_USER`, `EMAIL_PASSWORD`, and `EMAIL_HOST` in `.env`
-- Verify your email provider's SMTP settings
-
-### CORS Errors
-Ensure the server's CORS configuration includes your client URL. Check `server.js` for CORS setup.
-
-## 🚢 Deployment
-
-### Server Deployment (Heroku/Railway)
-1. Create a Heroku app or Railway project
-2. Add MongoDB Atlas for database
-3. Set environment variables in deployment platform
-4. Deploy server from the `server` directory
-
-### Client Deployment (Vercel/Netlify)
-1. Build the project: `npm run build`
-2. Deploy the `build` folder to Vercel, Netlify, or similar
-3. Configure API URL to point to deployed server
-
 ## 📚 Technologies Used
 
 **Frontend:**
@@ -260,10 +237,6 @@ Ensure the server's CORS configuration includes your client URL. Check `server.j
 2. Commit your changes (`git commit -m 'Add amazing feature'`)
 3. Push to the branch (`git push origin feature/amazing-feature`)
 4. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the ISC License - see the LICENSE file for details.
 
 ## ❓ Support & Documentation
 
