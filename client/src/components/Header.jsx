@@ -18,12 +18,13 @@ const Header = () => {
 
   return (
     <header className="bg-white/90 shadow-sm sticky top-0 z-30 backdrop-blur">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-        <Link to="/" className="flex flex-col leading-tight">
-          <div className="text-2xl font-black tracking-wider text-park-blue bg-gradient-to-r from-park-blue to-indigo-600 bg-clip-text text-transparent">PARKBANDHU</div>
-          <span className="text-[0.65rem] sm:text-xs font-medium tracking-[0.18em] text-slate-600 uppercase">
-            Bharat Ka Apna Parking App
-          </span>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+        <Link to="/" className="flex items-center shrink-0">
+          <img
+            src="/Media/ParkBandhu_Logo_Transparent.svg"
+            alt="ParkBandhu — Bharat Ka Apna Parking App"
+            className="h-14 sm:h-16 md:h-[4.5rem] w-auto"
+          />
         </Link>
         <nav className="flex items-center gap-3">
           <div className="inline-flex rounded-full bg-slate-100 p-1 text-xs font-medium">

@@ -49,7 +49,7 @@ const Home = () => {
             className="rounded-2xl shadow-2xl border border-park-blue/30 w-full h-auto"
             style={{ maxHeight: '600px', objectFit: 'cover', display: 'block', transform: 'scale(1.15)', transformOrigin: 'center top' }}
           >
-            <source src="/parking-demo.mp4" type="video/mp4" />
+            <source src="/Media/parking-demo.mp4" type="video/mp4" />
             Your browser does not support the video tag.
           </video>
         </div>
@@ -403,7 +403,7 @@ const Home = () => {
           </Link>
           <a
             className="hover:text-park-blue"
-            href="https://mail.google.com/mail/?view=cm&to=parkbandhu@gmail.com&su=Contact%20from%20PARKBANDHU"
+            href="https://mail.google.com/mail/?view=cm&to=parkbandhu@gmail.com&su=Contact%20related%20to%20:%20[Your%20Query]"
             target="_blank"
             rel="noopener noreferrer"
           >

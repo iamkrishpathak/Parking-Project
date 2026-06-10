@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Favicon-friendly icon -->
+  <path d="M128 12C76 12 36 52 36 104c0 69 92 140 92 140s92-71 92-140C220 52 180 12 128 12z"
+        fill="#1E88E5"/>
+  <path d="M128 12C180 12 220 52 220 104c0 69-92 140-92 140V12z"
+        fill="#1976D2"/>
+  <text x="128" y="132"
+        text-anchor="middle"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="88"
+        font-weight="700"
+        fill="#000000">P</text>
+</svg>
