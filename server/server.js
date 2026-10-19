@@ -47,7 +47,6 @@ const corsOptions = {
 app.set('trust proxy', 1);
 app.use(express.json());
 app.use(cors(corsOptions));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const http = require('http');
 const { Server } = require('socket.io');
@@ -70,6 +69,15 @@ app.use('/api/auth', authRoutes);
 app.use('/api/spaces', spaceRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/admin', adminRoutes);
+
+// Keep upload errors client-readable without exposing internal paths or stack traces.
+app.use((error, _req, res, _next) => {
+  if (error?.status === 400 || error?.name === 'MulterError' || error?.message?.startsWith('Only images')) {
+    return res.status(400).json({ message: error.message || 'Invalid upload' });
+  }
+  console.error('Request error:', error?.message || error);
+  return res.status(500).json({ message: 'Request could not be completed' });
+});
 
 // fallback handler
 app.use((req, res) => {

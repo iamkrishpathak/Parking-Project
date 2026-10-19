@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Download, TicketCheck, X } from 'lucide-react';
+import QRCode from 'qrcode';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
 const DriverProfile = () => {
   const navigate = useNavigate();
-  const { user, isDriver, login, updateUser, socket } = useAuth();
+  const { user, isDriver, updateUser, socket } = useAuth();
   const [bookings, setBookings] = useState([]);
+  const [bookingsLoading, setBookingsLoading] = useState(false);
+  const [bookingsError, setBookingsError] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('active'); // 'active', 'past', 'profile'
   const [isEditing, setIsEditing] = useState(false);
@@ -17,7 +21,39 @@ const DriverProfile = () => {
   });
   const [queryForm, setQueryForm] = useState({ bookingId: '', message: '' });
   const [showQueryModal, setShowQueryModal] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [ticketQr, setTicketQr] = useState('');
+  const [ticketQrError, setTicketQrError] = useState(false);
   const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (!selectedTicket?._id) {
+      setTicketQr('');
+      setTicketQrError(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setTicketQr('');
+    setTicketQrError(false);
+    QRCode.toDataURL(selectedTicket._id, {
+      width: 240,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+      color: { dark: '#0f172a', light: '#ffffff' },
+    })
+      .then((dataUrl) => {
+        if (!cancelled) setTicketQr(dataUrl);
+      })
+      .catch((error) => {
+        console.error('Unable to generate ticket QR code', error);
+        if (!cancelled) setTicketQrError(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTicket]);
 
   useEffect(() => {
     if (!isDriver) {
@@ -43,25 +79,30 @@ const DriverProfile = () => {
     if (!socket || !isDriver || !user) return;
     const onNew = (booking) => {
       if (String(booking.driverId?._id || booking.driverId) === String(user._id)) {
-        setBookings((prev) => [booking, ...prev]);
+        setBookings((prev) => [booking, ...prev.filter((item) => item._id !== booking._id)]);
       }
     };
+    const onDeleted = ({ _id }) => {
+      setBookings((prev) => prev.filter((booking) => booking._id !== _id));
+    };
     socket.on('booking:new', onNew);
+    socket.on('booking:deleted', onDeleted);
     return () => {
       socket.off('booking:new', onNew);
+      socket.off('booking:deleted', onDeleted);
     };
   }, [socket, isDriver, user]);
 
   const fetchBookings = async () => {
-    setLoading(true);
+    setBookingsLoading(true);
+    setBookingsError('');
     try {
       console.log('Fetching driver bookings...');
       const { data } = await api.get('/api/bookings/driver');
       console.log('Response data:', data);
       if (!Array.isArray(data)) {
         console.error('Invalid response format: Expected an array, got:', typeof data, data);
-        setMessage('Unable to fetch bookings - invalid response format');
-        setBookings([]);
+        setBookingsError('Unable to load bookings: the server returned an unexpected response.');
         return;
       }
       console.log('Fetched driver bookings:', data);
@@ -72,10 +113,9 @@ const DriverProfile = () => {
       console.error('Error response:', error.response?.data);
       console.error('Error status:', error.response?.status);
       const errorMsg = error.response?.data?.message || error.message || 'Unable to fetch bookings';
-      setMessage(`Error: ${error.response?.status || 'unknown'} - ${errorMsg}`);
-      setBookings([]);
+      setBookingsError(`Unable to load bookings: ${errorMsg}`);
     } finally {
-      setLoading(false);
+      setBookingsLoading(false);
     }
   };
 
@@ -121,31 +161,6 @@ const DriverProfile = () => {
     window.open(googleMapsUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const downloadReceipt = (booking) => {
-    try {
-      const receipt = `ParkBandhu Receipt\n\nBooking ID: ${booking._id}\nDriver: ${booking.driverId?.name || ''}\nSpace: ${booking.spaceId?.address || ''}\nStart: ${new Date(booking.startTime).toLocaleString()}\nEnd: ${new Date(booking.endTime).toLocaleString()}\nAmount Paid: ₹${booking.totalCost}\nPayment ID: ${booking.razorpayPaymentId || 'N/A'}\n\nThank you for using ParkBandhu.`;
-      const blob = new Blob([receipt], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `receipt_${booking._id}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Receipt download failed', err);
-      alert('Unable to download receipt');
-    }
-  };
-
-  const copyQRLink = (booking) => {
-    const link = `${window.location.origin}/booking/${booking._id}`;
-    navigator.clipboard.writeText(link).then(() => {
-      alert('QR link copied to clipboard (use in QR generator)');
-    }).catch(() => alert('Unable to copy link'));
-  };
-
   const getActiveBookings = () => {
     const now = new Date();
     const active = bookings.filter(
@@ -160,7 +175,16 @@ const DriverProfile = () => {
     return bookings.filter((booking) => new Date(booking.endTime) <= now);
   };
 
+  const getUpcomingBookings = () => {
+    const now = new Date();
+    return bookings
+      .filter((booking) => new Date(booking.startTime) > now)
+      .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+  };
+
   const activeBookings = getActiveBookings();
+  const upcomingBookings = getUpcomingBookings();
+  const currentBookings = [...activeBookings, ...upcomingBookings];
   const pastBookings = getPastBookings();
 
   if (!isDriver) return null;
@@ -182,7 +206,7 @@ const DriverProfile = () => {
               : 'text-slate-600 hover:text-park-blue'
           }`}
         >
-          Active Sessions ({activeBookings.length})
+          Bookings ({currentBookings.length})
         </button>
         <button
           onClick={() => setActiveTab('past')}
@@ -217,12 +241,17 @@ const DriverProfile = () => {
           {message}
         </div>
       )}
+      {bookingsError && (
+        <div role="alert" className="mb-4 rounded-xl bg-rose-50 p-3 text-rose-700">
+          {bookingsError}
+        </div>
+      )}
 
       {/* Active Sessions Tab */}
       {activeTab === 'active' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-park-navy">Your Active Parking Sessions</h3>
+            <h3 className="text-lg font-semibold text-park-navy">Your Current & Upcoming Bookings</h3>
             <button
               onClick={fetchBookings}
               className="px-3 py-1 rounded-full bg-park-blue text-white text-xs font-semibold hover:bg-indigo-600 transition"
@@ -231,15 +260,14 @@ const DriverProfile = () => {
               Refresh
             </button>
           </div>
-          {loading && bookings.length === 0 ? (
+          {bookingsLoading && bookings.length === 0 ? (
             <p className="text-slate-500">Loading...</p>
-          ) : activeBookings.length === 0 ? (
+          ) : currentBookings.length === 0 ? (
             <div className="bg-white rounded-3xl p-8 text-center border border-slate-100">
-              <p className="text-slate-500">No active parking sessions</p>
+              <p className="text-slate-500">No current or upcoming parking bookings</p>
             </div>
           ) : (
-            activeBookings.map((booking) => {
-              const [lng, lat] = booking.spaceId?.location?.coordinates || [];
+            currentBookings.map((booking) => {
               const isActive = new Date(booking.startTime) <= new Date() && new Date(booking.endTime) > new Date();
               return (
                 <div
@@ -295,11 +323,16 @@ const DriverProfile = () => {
                         Get Directions
                       </button>
                       <div className="flex flex-col gap-2 items-end">
-                        <div className="px-4 py-2 rounded-full bg-emerald-100 text-emerald-700 text-sm font-semibold text-center">Active</div>
-                        <div className="flex gap-2">
-                          <button onClick={() => downloadReceipt(booking)} className="text-xs px-3 py-1 rounded-full bg-park-mint text-park-navy">Receipt</button>
-                          <button onClick={() => copyQRLink(booking)} className="text-xs px-3 py-1 rounded-full bg-park-blue text-white">QR Link</button>
+                        <div className={`px-4 py-2 rounded-full text-sm font-semibold text-center ${isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>
+                          {isActive ? 'Active' : 'Upcoming'}
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTicket(booking)}
+                          className="inline-flex items-center gap-2 rounded-full bg-park-blue px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-600"
+                        >
+                          <TicketCheck size={16} /> View ticket
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -313,7 +346,7 @@ const DriverProfile = () => {
       {/* Past Bookings Tab */}
       {activeTab === 'past' && (
         <div className="space-y-4">
-          {loading && bookings.length === 0 ? (
+          {bookingsLoading && bookings.length === 0 ? (
             <p className="text-slate-500">Loading...</p>
           ) : pastBookings.length === 0 ? (
             <div className="bg-white rounded-3xl p-8 text-center border border-slate-100">
@@ -369,8 +402,13 @@ const DriverProfile = () => {
                     Raise Query
                   </button>
                   <div className="flex gap-2">
-                    <button onClick={() => downloadReceipt(booking)} className="text-xs px-3 py-1 rounded-full bg-park-mint text-park-navy">Receipt</button>
-                    <button onClick={() => copyQRLink(booking)} className="text-xs px-3 py-1 rounded-full bg-park-blue text-white">QR Link</button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTicket(booking)}
+                      className="inline-flex items-center gap-2 rounded-full bg-park-blue px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-600"
+                    >
+                      <TicketCheck size={16} /> View ticket
+                    </button>
                   </div>
                 </div>
               </div>
@@ -549,6 +587,126 @@ const DriverProfile = () => {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {selectedTicket && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setSelectedTicket(null);
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="booking-ticket-title"
+            className="w-full max-w-lg rounded-[2rem] bg-white p-5 shadow-2xl sm:p-7"
+          >
+            <div className="booking-ticket-print overflow-hidden rounded-3xl border border-slate-200 bg-white">
+              <div className="bg-gradient-to-r from-sky-500 to-cyan-400 p-6 text-white sm:p-7">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-bold tracking-wide">ParkBandhu</p>
+                    <h2 id="booking-ticket-title" className="mt-3 text-2xl font-black tracking-tight">Parking ticket</h2>
+                  </div>
+                  <span className="rounded-full bg-white/20 px-3 py-1.5 text-xs font-bold uppercase tracking-wide">
+                    {new Date(selectedTicket.endTime) <= new Date()
+                      ? 'Completed'
+                      : new Date(selectedTicket.startTime) <= new Date()
+                        ? 'Active'
+                        : 'Upcoming'}
+                  </span>
+                </div>
+                <p className="mt-4 break-all text-xs font-medium text-white/90">Booking ID: {selectedTicket._id}</p>
+              </div>
+
+              <div className="space-y-5 p-6 sm:p-7">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[.16em] text-sky-700">Parking location</p>
+                  <h3 className="mt-1 text-lg font-extrabold text-park-navy">
+                    {selectedTicket.spaceId?.title || selectedTicket.spaceId?.address || 'Parking space'}
+                  </h3>
+                  {selectedTicket.spaceId?.title && selectedTicket.spaceId?.address && (
+                    <p className="mt-1 text-sm text-slate-500">{selectedTicket.spaceId.address}</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 border-y border-dashed border-slate-200 py-5">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Arrival</p>
+                    <p className="mt-1 text-sm font-bold text-slate-800">
+                      {new Date(selectedTicket.startTime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Departure</p>
+                    <p className="mt-1 text-sm font-bold text-slate-800">
+                      {new Date(selectedTicket.endTime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Driver</p>
+                    <p className="mt-1 text-sm font-bold text-slate-800">{user?.name || 'Driver'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Payment</p>
+                    <p className="mt-1 text-sm font-bold text-slate-800">{selectedTicket.paymentStatus || 'Pending'}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-4 border-b border-dashed border-slate-200 pb-5">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-sky-700">Booking QR</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-700">Scan to read the booking ID</p>
+                    <p className="mt-1 text-xs text-slate-400">{selectedTicket._id}</p>
+                  </div>
+                  {ticketQr ? (
+                    <img src={ticketQr} alt={`QR code for booking ${selectedTicket._id}`} className="h-28 w-28 rounded-xl border border-slate-200 bg-white p-2" />
+                  ) : (
+                    <div role={ticketQrError ? 'alert' : undefined} className="flex h-28 w-28 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-3 text-center text-xs text-slate-500">
+                      {ticketQrError ? 'QR code could not be created' : 'Creating QR…'}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total amount</p>
+                    <p className="mt-1 text-2xl font-black text-park-navy">₹{selectedTicket.totalCost}</p>
+                  </div>
+                  {selectedTicket.razorpayPaymentId && (
+                    <p className="max-w-44 break-all text-right text-[11px] text-slate-400">
+                      Payment ref: {selectedTicket.razorpayPaymentId}
+                    </p>
+                  )}
+                </div>
+
+                <p className="border-t border-slate-100 pt-4 text-center text-xs leading-5 text-slate-400">
+                  Keep this ticket available when you arrive. Show the booking ID to the host if requested.
+                </p>
+              </div>
+            </div>
+
+            <div className="booking-ticket-no-print mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                disabled={!ticketQr && !ticketQrError}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-park-blue px-5 py-3 font-bold text-white transition hover:bg-indigo-600 disabled:cursor-wait disabled:opacity-60"
+              >
+                <Download size={17} /> {ticketQr || ticketQrError ? 'Download ticket' : 'Preparing ticket…'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedTicket(null)}
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                <X size={17} /> Close
+              </button>
+            </div>
+            <p className="booking-ticket-no-print mt-3 text-center text-xs text-slate-400">Choose “Save as PDF” in the print dialog to download it.</p>
+          </section>
         </div>
       )}
     </div>

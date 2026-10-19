@@ -5,6 +5,8 @@ const BookingModal = ({ space, onClose, onConfirm, isSubmitting }) => {
   const [endTime, setEndTime] = useState('');
   const [showPayment, setShowPayment] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState('pending'); // 'pending', 'processing', 'success', 'failed'
+  const [bookingError, setBookingError] = useState('');
+  const [confirmedBooking, setConfirmedBooking] = useState(null);
 
   // Get current date/time in format required for datetime-local input
   const getCurrentDateTime = () => {
@@ -60,18 +62,16 @@ const BookingModal = ({ space, onClose, onConfirm, isSubmitting }) => {
     
     setShowPayment(true);
     setPaymentStatus('processing');
-    // Simulate payment processing
-    setTimeout(() => {
+    setBookingError('');
+    try {
+      const booking = await onConfirm({ startTime, endTime });
+      setConfirmedBooking(booking);
       setPaymentStatus('success');
-      // After showing success, proceed with booking
-      setTimeout(() => {
-        onConfirm({ startTime, endTime });
-        // Close modal after a brief delay to show success message
-        setTimeout(() => {
-          onClose();
-        }, 1500);
-      }, 2000);
-    }, 2000);
+      window.setTimeout(onClose, 1500);
+    } catch (error) {
+      setBookingError(error.message || 'Booking could not be completed. Please try again.');
+      setPaymentStatus('failed');
+    }
   };
 
   if (!space) return null;
@@ -115,6 +115,26 @@ const BookingModal = ({ space, onClose, onConfirm, isSubmitting }) => {
     );
   }
 
+  if (showPayment && paymentStatus === 'failed') {
+    return (
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+        <div role="alert" className="bg-white rounded-3xl p-8 max-w-md w-full text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+            <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-park-navy">Booking not confirmed</h2>
+          <p className="mt-3 text-sm text-rose-700">{bookingError}</p>
+          <div className="mt-6 flex gap-3">
+            <button type="button" onClick={onClose} className="flex-1 rounded-full border border-slate-200 py-3 font-semibold text-slate-700">Close</button>
+            <button type="button" onClick={() => { setShowPayment(false); setPaymentStatus('pending'); setBookingError(''); }} className="flex-1 rounded-full bg-park-blue py-3 font-semibold text-white">Try again</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const openGoogleMaps = () => {
     if (!space?.location?.coordinates) return;
     
@@ -143,18 +163,18 @@ const BookingModal = ({ space, onClose, onConfirm, isSubmitting }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-park-navy mb-2">Payment Successful!</h2>
+            <h2 className="text-2xl font-bold text-park-navy mb-2">Booking Confirmed</h2>
             <p className="text-slate-500">Your booking has been confirmed.</p>
           </div>
           <div className="bg-emerald-50 rounded-xl p-4 space-y-2 mb-4">
             <div className="flex justify-between text-sm">
-              <span className="text-slate-600">Amount Paid:</span>
-              <span className="font-semibold text-emerald-700">₹{calculateCost()}</span>
+              <span className="text-slate-600">Total amount:</span>
+              <span className="font-semibold text-emerald-700">₹{confirmedBooking?.totalCost ?? calculateCost()}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-slate-600">Payment ID:</span>
               <span className="font-semibold text-emerald-700">
-                {`pay_${Math.random().toString(36).substr(2, 14)}`}
+                {confirmedBooking?.razorpayPaymentId || 'Payment confirmed'}
               </span>
             </div>
             <div className="flex justify-between text-sm pt-2 border-t border-emerald-200">

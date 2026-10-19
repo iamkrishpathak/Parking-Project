@@ -1,3 +1,15 @@
+const Space = require('../models/Space');
+const Booking = require('../models/Booking');
+const socketUtil = require('../utils/socket');
+const { simulateRazorpayPayment } = require('../utils/paymentSimulator');
+const { isListingPublic } = require('../utils/spaceVerification');
+
+const hasConflict = async ({ spaceId, startTime, endTime }) => Booking.exists({
+  spaceId,
+  startTime: { $lt: endTime },
+  endTime: { $gt: startTime },
+});
+
 exports.createBooking = async (req, res) => {
   try {
     const { spaceId, startTime, endTime, vehicleType = 'car', simulatePayment = true } = req.body;
@@ -8,6 +20,9 @@ exports.createBooking = async (req, res) => {
     const start = new Date(startTime);
     const end = new Date(endTime);
     const now = new Date();
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) {
+      return res.status(400).json({ message: 'Valid startTime and endTime values are required' });
+    }
     
     if (start < now || end < now) {
       return res.status(400).json({ message: 'Start/End time cannot be in the past' });
@@ -22,9 +37,16 @@ exports.createBooking = async (req, res) => {
     if (!space) {
       return res.status(404).json({ message: 'Space not found' });
     }
+    if (!isListingPublic(space)) {
+      return res.status(404).json({ message: 'This parking space is not available for booking' });
+    }
+    if (!['bike', 'car', 'suv'].includes(vehicleType)) {
+      return res.status(400).json({ message: 'Unsupported vehicle type' });
+    }
 
     const requestedDay = start.toLocaleDateString('en-IN', { weekday: 'long' });
-    const slotFound = space.availability.some(slot => {
+    const availableSlots = space.availability?.length ? space.availability : space.availabilitySchedule || [];
+    const slotFound = availableSlots.some(slot => {
       if (slot.day !== requestedDay) return false;
       const slotDate = new Date(start);
       const [slotStartHour, slotStartMin] = slot.startTime.split(":").map(Number);
@@ -45,15 +67,26 @@ exports.createBooking = async (req, res) => {
       return res.status(409).json({ message: 'Time slot already booked' });
     }
 
-    // Atomic update: increment current_bookings only if below capacity for vehicle type
-    const vehicleCapacity = space.capacity[vehicleType] || space.capacity.car;
+    // Repeat visibility and capacity checks in the atomic write to avoid a stale approval or capacity read.
+    const storedCapacity = Number(space.capacityByVehicle?.[vehicleType]) ||
+      Number(typeof space.capacity === 'object' ? space.capacity?.[vehicleType] : 0);
+    const vehicleCapacity = Number(storedCapacity || 0);
+    if (vehicleCapacity <= 0) {
+      return res.status(409).json({ message: `This space does not accept ${vehicleType} bookings` });
+    }
+    const hourlyRate = Number(space.pricingByVehicle?.[vehicleType] || space.pricePerHour?.[vehicleType] || space.pricePerHour || 0);
+    if (hourlyRate <= 0) {
+      return res.status(409).json({ message: 'This parking space does not have a valid hourly price for this vehicle type' });
+    }
     const updatedSpace = await Space.findOneAndUpdate(
       {
         _id: spaceId,
-        [`current_bookings.${vehicleType}`]: { $lt: vehicleCapacity }
+        verificationStatus: 'approved',
+        isPublished: true,
+        [`currentBookings.${vehicleType}`]: { $lt: vehicleCapacity }
       },
       {
-        $inc: { [`current_bookings.${vehicleType}`]: 1 }
+        $inc: { [`currentBookings.${vehicleType}`]: 1 }
       },
       { new: true }
     );
@@ -64,7 +97,7 @@ exports.createBooking = async (req, res) => {
 
     // Calculate cost and process payment
     const durationHours = Math.max((end - start) / (1000 * 60 * 60), 1);
-    const totalCost = Math.round(durationHours * space.pricePerHour * 100) / 100;
+    const totalCost = Math.round(durationHours * hourlyRate * 100) / 100;
 
     let paymentStatus = 'Pending';
     let razorpayPaymentId = null;

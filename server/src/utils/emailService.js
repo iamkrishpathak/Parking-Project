@@ -11,14 +11,16 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Verify connection
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('Email service not configured or error:', error.message);
-  } else {
-    console.log('Email service ready for sending');
-  }
-});
+// Avoid a network request during startup when mail credentials have not been configured.
+if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+  transporter.verify((error) => {
+    if (error) {
+      console.error('Email service not configured or error:', error.message);
+    } else {
+      console.log('Email service ready for sending');
+    }
+  });
+}
 
 const sendKYCApprovedEmail = async (userEmail, userName) => {
   const mailOptions = {

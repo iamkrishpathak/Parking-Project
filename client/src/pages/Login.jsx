@@ -40,7 +40,7 @@ const Login = () => {
     setError('');
     setLoading(true);
     try {
-      const { data } = await api.post('/api/auth/login', { email: form.email, password: form.password });
+      const { data } = await api.post('/api/auth/login', { email: form.email, password: form.password, role: requestedRole || undefined });
       completeLogin(data);
     } catch (err) {
       console.error('Login error:', err);
@@ -147,18 +147,11 @@ const Login = () => {
             <span className="h-px flex-1 bg-slate-200" />
           </div>
           <GoogleSignInButton onCredential={handleGoogleCredential} onError={setError} disabled={loading} />
-          {requestedRole === 'host' && (
-            <p className="mt-3 text-center text-sm text-slate-500">
-              Need a host account?{' '}
-              <Link to="/register?role=host" className="font-semibold text-park-blue hover:underline">
-                Register as a host
-              </Link>
-            </p>
-          )}
+          {!requestedRole && <p className="mt-3 text-center text-sm text-slate-500">Hosting a parking space? <Link to="/login?role=host" className="font-semibold text-park-blue hover:underline">Sign in as a host</Link></p>}
           <p className="text-sm text-center text-slate-500 mt-4">
-            New to ParkBandhu?{' '}
-            <Link to="/register" className="text-park-blue font-semibold">
-              Create account
+            Need a {requestedRole === 'host' ? 'host' : 'driver'} account?{' '}
+            <Link to={`/register?role=${requestedRole === 'host' ? 'host' : 'driver'}`} className="text-park-blue font-semibold hover:underline">
+              Register as a {requestedRole === 'host' ? 'host' : 'driver'}
             </Link>
           </p>
         </div>

@@ -1,10 +1,26 @@
 import React, { useState } from 'react';
+import api from '../api/client';
 
 const KYCVerificationModal = ({ kyc, onApprove, onReject, onRequestDocuments, onClose }) => {
   const [action, setAction] = useState(null); // 'approve', 'reject', 'request'
   const [reason, setReason] = useState('');
   const [requestMessage, setRequestMessage] = useState('');
   const [documents, setDocuments] = useState([]);
+
+  const openDocument = async (url) => {
+    try {
+      if (!url?.startsWith('/api/')) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      const { data } = await api.get(url, { responseType: 'blob' });
+      const objectUrl = URL.createObjectURL(data);
+      window.open(objectUrl, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch (error) {
+      alert(error.response?.data?.message || 'Unable to open this verification document');
+    }
+  };
 
   const handleApprove = () => {
     onApprove(kyc._id, kyc.kycDocuments || []);
@@ -91,14 +107,13 @@ const KYCVerificationModal = ({ kyc, onApprove, onReject, onRequestDocuments, on
                           Uploaded {new Date(doc.uploadedAt).toLocaleDateString()}
                         </p>
                       </div>
-                      <a
-                        href={doc.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => openDocument(doc.url)}
                         className="text-blue-600 hover:text-blue-900 font-medium text-sm"
                       >
                         View
-                      </a>
+                      </button>
                     </div>
                   </div>
                 ))

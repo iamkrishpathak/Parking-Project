@@ -1,7 +1,10 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
+const { storePrivateFile, getPrivateFilePath } = require('../utils/privateFileStorage');
 const { 
   sendKYCSubmittedNotificationToAdmin,
   sendKYCApprovedEmail,
@@ -22,15 +25,11 @@ const getJwtSecret = () => {
 
 const signToken = (userId) => jwt.sign({ id: userId }, getJwtSecret(), { expiresIn: '7d' });
 
-const getPublicFileUrl = (req, filename) => {
-  const baseUrl = process.env.PUBLIC_API_URL || `${req.protocol}://${req.get('host')}`;
-  return new URL(`/uploads/${filename}`, baseUrl).toString();
-};
-
 const sanitizeUser = (user) => {
   const {
     password,
     googleId,
+    kycDocuments,
     passwordResetToken,
     passwordResetExpires,
     passwordResetRequestedAt,
@@ -38,6 +37,48 @@ const sanitizeUser = (user) => {
     ...rest
   } = user.toObject();
   return rest;
+};
+
+exports.getKycStatus = async (req, res) => {
+  return res.json({
+    kycStatus: req.user.kycStatus || 'pending',
+    kyc_status: req.user.kycStatus === 'approved' ? 'approved' : (req.user.kycStatus || 'pending'),
+    verificationNotes: req.user.verificationNotes || '',
+    submittedAt: req.user.kycSubmittedAt || null,
+  });
+};
+
+exports.streamKycDocument = async (req, res) => {
+  try {
+    if (String(req.params.userId) !== String(req.user._id) && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'You are not authorized to access this document' });
+    }
+    const filename = path.basename(req.params.filename);
+    const owner = await User.findById(req.params.userId).select('kycDocuments');
+    const document = owner?.kycDocuments.find((item) => item.filename === filename);
+    if (!document) return res.status(404).json({ message: 'KYC document not found' });
+
+    let documentPath = getPrivateFilePath('document', filename);
+    if (!documentPath || !fs.existsSync(documentPath)) {
+      // Legacy documents are served through this same owner/admin check, never through a public static mount.
+      documentPath = path.join(__dirname, '../../uploads', filename);
+      if (path.dirname(documentPath) !== path.resolve(__dirname, '../../uploads') || !fs.existsSync(documentPath)) {
+        return res.status(404).json({ message: 'KYC document not found' });
+      }
+    }
+    res.set({
+      'Content-Type': document.mimeType || 'application/octet-stream',
+      'Content-Disposition': `${document.mimeType === 'application/pdf' ? 'attachment' : 'inline'}; filename="${encodeURIComponent(document.originalName || filename)}"`,
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'private, no-store',
+    });
+    return res.sendFile(documentPath, (error) => {
+      if (error && !res.headersSent) res.status(404).json({ message: 'KYC document not found' });
+    });
+  } catch (error) {
+    console.error('KYC document retrieval error:', error.message);
+    return res.status(500).json({ message: 'Unable to retrieve KYC document' });
+  }
 };
 
 exports.register = async (req, res) => {
@@ -53,7 +94,10 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    const roleLower = role ? role.toLowerCase() : 'driver';
+    const roleLower = role ? String(role).toLowerCase() : 'driver';
+    if (!['driver', 'host'].includes(roleLower)) {
+      return res.status(400).json({ message: 'Choose either a driver or host account type' });
+    }
 
     const user = await User.create({
       name,
@@ -90,7 +134,7 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
     console.log('Login attempt for email:', email);
 
     if (!email || !password) {
@@ -108,6 +152,14 @@ exports.login = async (req, res) => {
     if (!isMatch) {
       console.log('Login failed: password mismatch for email:', email);
       return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    if (role === 'host' && user.role === 'driver') {
+      user.role = 'host';
+      user.kycStatus = 'pending';
+      user.isVerified = false;
+      user.verificationNotes = 'Host verification is required before listing parking spaces.';
+      await user.save();
     }
 
     const token = signToken(user._id);
@@ -167,6 +219,14 @@ exports.googleLogin = async (req, res) => {
           role: requestedRole,
         });
       }
+    }
+
+    if (role === 'host' && user.role === 'driver') {
+      user.role = 'host';
+      user.kycStatus = 'pending';
+      user.isVerified = false;
+      user.verificationNotes = 'Host verification is required before listing parking spaces.';
+      await user.save();
     }
 
     return res.json({ token: signToken(user._id), user: sanitizeUser(user) });
@@ -300,6 +360,7 @@ exports.uploadKycFiles = (req, res, next) => {
 };
 
 exports.uploadKYC = async (req, res) => {
+  const savedPaths = [];
   try {
     const userId = req.user._id;
     const { files } = req;
@@ -314,22 +375,25 @@ exports.uploadKYC = async (req, res) => {
     const identityFile = files.identityProof[0];
     const addressFile = files.addressProof[0];
 
-    // Store file paths in database
+    const privateIdentity = await storePrivateFile(identityFile.buffer, 'document', identityFile.originalname);
+    savedPaths.push(path.join(privateIdentity.directory, privateIdentity.privateKey));
+    const privateAddress = await storePrivateFile(addressFile.buffer, 'document', addressFile.originalname);
+    savedPaths.push(path.join(privateAddress.directory, privateAddress.privateKey));
     const kycDocuments = [
       {
         type: 'aadhar',
-        url: getPublicFileUrl(req, identityFile.filename),
-        filename: identityFile.filename,
-        originalName: identityFile.originalname,
-        mimeType: identityFile.mimetype,
+        url: `/api/auth/kyc/${userId}/documents/${privateIdentity.privateKey}`,
+        filename: privateIdentity.privateKey,
+        originalName: privateIdentity.originalName,
+        mimeType: privateIdentity.mimeType,
         uploadedAt: new Date(),
       },
       {
         type: 'other',
-        url: getPublicFileUrl(req, addressFile.filename),
-        filename: addressFile.filename,
-        originalName: addressFile.originalname,
-        mimeType: addressFile.mimetype,
+        url: `/api/auth/kyc/${userId}/documents/${privateAddress.privateKey}`,
+        filename: privateAddress.privateKey,
+        originalName: privateAddress.originalName,
+        mimeType: privateAddress.mimeType,
         uploadedAt: new Date(),
       }
     ];
@@ -339,6 +403,8 @@ exports.uploadKYC = async (req, res) => {
       userId,
       { 
         kycStatus: 'pending',
+        isVerified: false,
+        verificationNotes: '',
         kycDocuments: kycDocuments,
         $set: { kycSubmittedAt: new Date() }
       },
@@ -359,10 +425,11 @@ exports.uploadKYC = async (req, res) => {
       user: sanitizeUser(updatedUser)
     });
   } catch (error) {
+    await Promise.all(savedPaths.map((filePath) => fs.promises.unlink(filePath).catch(() => {})));
     console.error('Error in uploadKYC:', error);
-    res.status(500).json({ 
+    res.status(/invalid|unsupported/i.test(error.message) ? 400 : 500).json({
       success: false,
-      message: error.message || 'Error processing KYC upload' 
+      message: /invalid|unsupported/i.test(error.message) ? error.message : 'Error processing KYC upload'
     });
   }
 };
@@ -372,6 +439,11 @@ exports.getPendingKYC = async (req, res) => {
   try {
     const pendingUsers = await User.find({ kycStatus: 'pending' })
       .select('-password -__v');
+    pendingUsers.forEach((user) => {
+      user.kycDocuments.forEach((document) => {
+        document.url = `/api/auth/kyc/${user._id}/documents/${encodeURIComponent(document.filename)}`;
+      });
+    });
     res.status(200).json(pendingUsers);
   } catch (error) {
     console.error('Error fetching pending KYC:', error);
@@ -388,9 +460,12 @@ exports.updateKYCStatus = async (req, res) => {
       return res.status(400).json({ message: 'Invalid status. Must be either "approved" or "rejected"' });
     }
 
+    if (status === 'rejected' && !String(rejectionReason || '').trim()) {
+      return res.status(400).json({ message: 'A reason is required when rejecting KYC' });
+    }
     const updatedUser = await User.findByIdAndUpdate(
       kycId,
-      { kycStatus: status },
+      { kycStatus: status, isVerified: status === 'approved', verificationNotes: status === 'rejected' ? String(rejectionReason).trim() : '' },
       { new: true }
     ).select('-password -__v');
 
@@ -421,5 +496,30 @@ exports.updateKYCStatus = async (req, res) => {
   } catch (error) {
     console.error('Error updating KYC status:', error);
     res.status(500).json({ message: 'Error updating KYC status' });
+  }
+};
+
+exports.requestKycDocuments = async (req, res) => {
+  try {
+    const { message, documents } = req.body || {};
+    if (typeof message !== 'string' || !message.trim()) return res.status(400).json({ message: 'Explain what additional information is required' });
+    if (!Array.isArray(documents) || documents.length === 0 || documents.length > 8 || documents.some((item) => typeof item !== 'string' || !item.trim())) {
+      return res.status(400).json({ message: 'Choose at least one additional document to request' });
+    }
+    const user = await User.findOne({ _id: req.params.kycId, role: 'host' });
+    if (!user) return res.status(404).json({ message: 'Host account not found' });
+    user.kycStatus = 'pending';
+    user.isVerified = false;
+    user.verificationNotes = message.trim().slice(0, 2000);
+    await user.save();
+    try {
+      await sendDocumentRequestEmail(user.email, user.name, documents.map((item) => item.trim()), user.verificationNotes);
+    } catch (emailError) {
+      console.error('Failed to send host KYC document request:', emailError.message);
+    }
+    return res.json({ message: 'Additional host verification information requested' });
+  } catch (error) {
+    console.error('Host KYC document request error:', error.message);
+    return res.status(500).json({ message: 'Unable to request additional host verification information' });
   }
 };

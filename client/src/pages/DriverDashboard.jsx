@@ -57,7 +57,7 @@ const getDirectionsUrl = (space) => {
 };
 
 const DriverDashboard = () => {
-  const { user, isDriver } = useAuth();
+  const { user, isDriver, socket } = useAuth();
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [locationForm, setLocationForm] = useState({ state: '', city: '', place: '' });
   const [spaces, setSpaces] = useState([]);
@@ -136,6 +136,27 @@ const DriverDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDriver]);
 
+  useEffect(() => {
+    if (!socket || !isDriver || !user) return;
+
+    const onNewBooking = (booking) => {
+      const driverId = booking.driverId?._id || booking.driverId;
+      if (String(driverId) !== String(user._id)) return;
+      setBookings((current) => [booking, ...current.filter((item) => item._id !== booking._id)]);
+    };
+
+    const onDeletedBooking = ({ _id }) => {
+      setBookings((current) => current.filter((booking) => booking._id !== _id));
+    };
+
+    socket.on('booking:new', onNewBooking);
+    socket.on('booking:deleted', onDeletedBooking);
+    return () => {
+      socket.off('booking:new', onNewBooking);
+      socket.off('booking:deleted', onDeletedBooking);
+    };
+  }, [socket, isDriver, user]);
+
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
       setNotice({ type: 'error', text: 'Location access is not available in this browser. Choose a place from the list instead.' });
@@ -171,20 +192,25 @@ const DriverDashboard = () => {
     setBookingLoading(true);
     setNotice(null);
     try {
-      await api.post('/api/bookings/create', {
+      const { data: booking } = await api.post('/api/bookings/create', {
         spaceId: selectedSpace._id,
         startTime,
         endTime,
         simulatePayment: true,
       });
       setNotice({ type: 'success', text: 'Booking confirmed. You can find it under Your parking.' });
-      setSelectedSpace(null);
-      await Promise.all([fetchSpaces(), fetchBookings()]);
+      if (booking?._id) {
+        setBookings((current) => [booking, ...current.filter((item) => item._id !== booking._id)]);
+      }
+      void Promise.all([fetchSpaces(), fetchBookings()]);
+      return booking;
     } catch (error) {
+      const message = error.response?.data?.message || 'Booking could not be completed. Please try again.';
       setNotice({
         type: 'error',
-        text: error.response?.data?.message || 'Booking could not be completed. Please try again.',
+        text: message,
       });
+      throw new Error(message);
     } finally {
       setBookingLoading(false);
     }

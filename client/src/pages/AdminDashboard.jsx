@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/client';
 import KYCVerificationModal from '../components/KYCVerificationModal';
+import ParkingSpaceVerificationPanel from '../components/admin/ParkingSpaceVerificationPanel';
 
 const AdminDashboard = () => {
   const [pendingKYC, setPendingKYC] = useState([]);
@@ -9,6 +10,7 @@ const AdminDashboard = () => {
   const [selectedKYC, setSelectedKYC] = useState(null);
   const [filterRole, setFilterRole] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('kyc');
 
   useEffect(() => {
     fetchPendingKYC();
@@ -95,8 +97,15 @@ const AdminDashboard = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-gray-600 mt-2">Manage KYC verifications and user requests</p>
+          <p className="text-gray-600 mt-2">Review host eligibility and parking listings independently.</p>
         </div>
+
+        <div className="mb-6 flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+          <button type="button" onClick={() => setActiveTab('kyc')} className={`rounded-full px-5 py-2 text-sm font-semibold ${activeTab === 'kyc' ? 'bg-park-blue text-white' : 'bg-white text-slate-600'}`}>Host KYC</button>
+          <button type="button" onClick={() => setActiveTab('spaces')} className={`rounded-full px-5 py-2 text-sm font-semibold ${activeTab === 'spaces' ? 'bg-park-blue text-white' : 'bg-white text-slate-600'}`}>Parking Space Verification</button>
+        </div>
+
+        {activeTab === 'spaces' ? <ParkingSpaceVerificationPanel /> : <>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -217,10 +226,11 @@ const AdminDashboard = () => {
             </table>
           )}
         </div>
+        </>}
       </div>
 
       {/* KYC Verification Modal */}
-      {selectedKYC && (
+      {activeTab === 'kyc' && selectedKYC && (
         <KYCVerificationModal
           kyc={selectedKYC}
           onApprove={handleApprove}

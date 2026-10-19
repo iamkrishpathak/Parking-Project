@@ -66,6 +66,12 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    verificationNotes: {
+      type: String,
+      trim: true,
+      maxlength: 2000,
+      default: '',
+    },
     kycDocuments: [{
       type: {
         type: String,
