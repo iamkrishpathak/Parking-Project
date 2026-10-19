@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { io } from 'socket.io-client';
+import { API_BASE_URL } from '../api/client';
 
 const AuthContext = createContext(null);
 
@@ -34,7 +35,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       try {
-        const s = io('http://localhost:5000');
+        const s = io(API_BASE_URL);
         s.on('connect', () => {
           s.emit('join', user._id);
         });
@@ -90,4 +91,3 @@ export const useAuth = () => {
   }
   return context;
 };
-

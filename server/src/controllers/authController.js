@@ -1,11 +1,16 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const { 
   sendKYCSubmittedNotificationToAdmin,
   sendKYCApprovedEmail,
   sendKYCRejectedEmail,
-  sendDocumentRequestEmail
+  sendDocumentRequestEmail,
+  sendPasswordResetEmail,
 } = require('../utils/emailService');
+
+const googleAuthClient = new OAuth2Client();
 
 const getJwtSecret = () => {
   if (!process.env.JWT_SECRET) {
@@ -17,14 +22,26 @@ const getJwtSecret = () => {
 
 const signToken = (userId) => jwt.sign({ id: userId }, getJwtSecret(), { expiresIn: '7d' });
 
+const getPublicFileUrl = (req, filename) => {
+  const baseUrl = process.env.PUBLIC_API_URL || `${req.protocol}://${req.get('host')}`;
+  return new URL(`/uploads/${filename}`, baseUrl).toString();
+};
+
 const sanitizeUser = (user) => {
-  const { password, __v, ...rest } = user.toObject();
+  const {
+    password,
+    googleId,
+    passwordResetToken,
+    passwordResetExpires,
+    passwordResetRequestedAt,
+    __v,
+    ...rest
+  } = user.toObject();
   return rest;
 };
 
 exports.register = async (req, res) => {
   try {
-    console.log('Registering user:', req.body);
     const { name, email, password, phone, role } = req.body;
 
     if (!name || !email || !password) {
@@ -102,6 +119,140 @@ exports.login = async (req, res) => {
   }
 };
 
+exports.googleLogin = async (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) {
+    return res.status(503).json({ message: 'Google sign-in is not configured on the server' });
+  }
+
+  const { credential, role } = req.body || {};
+  if (typeof credential !== 'string' || !credential) {
+    return res.status(400).json({ message: 'Google credential is required' });
+  }
+
+  try {
+    const ticket = await googleAuthClient.verifyIdToken({
+      idToken: credential,
+      audience: clientId,
+    });
+    const profile = ticket.getPayload();
+
+    if (!profile?.sub || !profile.email || profile.email_verified !== true) {
+      return res.status(401).json({ message: 'Google did not provide a verified email address' });
+    }
+
+    const email = profile.email.trim().toLowerCase();
+    let user = await User.findOne({ googleId: profile.sub });
+
+    if (!user) {
+      user = await User.findOne({ email }).select('+googleId');
+
+      if (user) {
+        if (user.googleId && user.googleId !== profile.sub) {
+          return res.status(409).json({ message: 'This email is linked to a different Google account' });
+        }
+
+        user.googleId = profile.sub;
+        user.isVerified = true;
+        await user.save();
+      } else {
+        const requestedRole = ['driver', 'host'].includes(role) ? role : 'driver';
+        user = await User.create({
+          name: profile.name || email.split('@')[0],
+          email,
+          password: crypto.randomBytes(32).toString('hex'),
+          googleId: profile.sub,
+          authProvider: 'google',
+          isVerified: true,
+          role: requestedRole,
+        });
+      }
+    }
+
+    return res.json({ token: signToken(user._id), user: sanitizeUser(user) });
+  } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({ message: 'An account with this Google email already exists. Try signing in again.' });
+    }
+    console.error('Google sign-in error:', error.message);
+    return res.status(401).json({ message: 'Google sign-in could not be verified' });
+  }
+};
+
+exports.requestPasswordReset = async (req, res) => {
+  const genericMessage = 'If an account exists for that email, we sent a password reset link.';
+
+  try {
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email }).select('+passwordResetRequestedAt');
+    const resetEmailCooldownMs = 60 * 1000;
+    const canSendResetEmail = user && (
+      !user.passwordResetRequestedAt ||
+      Date.now() - user.passwordResetRequestedAt.getTime() >= resetEmailCooldownMs
+    );
+
+    if (canSendResetEmail) {
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      user.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+      user.passwordResetExpires = new Date(Date.now() + 30 * 60 * 1000);
+      user.passwordResetRequestedAt = new Date();
+      await user.save();
+
+      const resetUrl = new URL('/reset-password', process.env.CLIENT_URL || 'http://localhost:3000');
+      resetUrl.searchParams.set('token', resetToken);
+
+      try {
+        await sendPasswordResetEmail(user.email, user.name, resetUrl.toString());
+      } catch (emailError) {
+        user.passwordResetToken = undefined;
+        user.passwordResetExpires = undefined;
+        user.passwordResetRequestedAt = undefined;
+        await user.save();
+        console.error('Failed to send password reset email:', emailError.message);
+      }
+    }
+
+    return res.json({ message: genericMessage });
+  } catch (error) {
+    console.error('Password reset request error:', error.message);
+    return res.status(500).json({ message: 'Unable to process the password reset request' });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (typeof token !== 'string' || !token || typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({ message: 'A valid reset link and a password of at least 8 characters are required' });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await User.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: new Date() },
+    }).select('+passwordResetToken +passwordResetExpires');
+
+    if (!user) {
+      return res.status(400).json({ message: 'This password reset link is invalid or has expired. Request a new one.' });
+    }
+
+    user.password = password;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    user.passwordResetRequestedAt = undefined;
+    await user.save();
+
+    return res.json({ message: 'Your password has been reset. You can now sign in with your new password.' });
+  } catch (error) {
+    console.error('Password reset error:', error.message);
+    return res.status(500).json({ message: 'Unable to reset the password' });
+  }
+};
+
 exports.updateProfile = async (req, res) => {
   try {
     const { name, email, phone } = req.body;
@@ -167,7 +318,7 @@ exports.uploadKYC = async (req, res) => {
     const kycDocuments = [
       {
         type: 'aadhar',
-        url: identityFile.path,
+        url: getPublicFileUrl(req, identityFile.filename),
         filename: identityFile.filename,
         originalName: identityFile.originalname,
         mimeType: identityFile.mimetype,
@@ -175,7 +326,7 @@ exports.uploadKYC = async (req, res) => {
       },
       {
         type: 'other',
-        url: addressFile.path,
+        url: getPublicFileUrl(req, addressFile.filename),
         filename: addressFile.filename,
         originalName: addressFile.originalname,
         mimeType: addressFile.mimetype,

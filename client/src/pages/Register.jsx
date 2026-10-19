@@ -1,16 +1,19 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 const Register = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialRole = searchParams.get('role') === 'host' ? 'host' : 'driver';
   const { login } = useAuth();
   const [form, setForm] = useState({
     name: '',
     email: '',
     password: '',
-    role: 'driver',
+    role: initialRole,
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,6 +35,23 @@ const Register = () => {
         err?.response?.data?.message || err?.message || 'Unable to register';
       console.log('Register error →', err);
       setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleCredential = async (credential) => {
+    setError('');
+    setLoading(true);
+    try {
+      const { data } = await api.post('/api/auth/google', {
+        credential,
+        role: form.role,
+      });
+      login(data);
+      navigate(data.user.role === 'host' ? '/host' : data.user.role === 'admin' ? '/admin' : '/driver');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Unable to continue with Google');
     } finally {
       setLoading(false);
     }
@@ -100,9 +120,15 @@ const Register = () => {
               disabled={loading}
               className="w-full rounded-full bg-park-blue text-white font-semibold py-3 hover:bg-indigo-600 disabled:opacity-70"
             >
-              {loading ? 'Creating...' : 'Create account'}
+              {loading ? 'Creating...' : form.role === 'host' ? 'Create host account' : 'Create driver account'}
             </button>
           </form>
+          <div className="my-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <span className="h-px flex-1 bg-slate-200" />
+            <span>or sign up with</span>
+            <span className="h-px flex-1 bg-slate-200" />
+          </div>
+          <GoogleSignInButton onCredential={handleGoogleCredential} onError={setError} disabled={loading} />
           <p className="text-sm text-center text-slate-500 mt-4">
             Already on ParkBandhu?{' '}
             <Link to="/login" className="text-park-blue font-semibold">

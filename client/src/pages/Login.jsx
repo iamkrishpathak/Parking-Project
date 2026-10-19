@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 const Login = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
+  const requestedRole = searchParams.get('role') === 'host' ? 'host' : null;
   const [form, setForm] = useState({ username: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,24 +18,30 @@ const Login = () => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  const completeLogin = (data) => {
+    const accountRole = data.user?.role;
+    if (requestedRole === 'host' && accountRole !== 'host' && accountRole !== 'admin') {
+      setError('This account is registered as a driver. Create or use a host account to open the host dashboard.');
+      return;
+    }
+
+    login(data);
+    if (accountRole === 'admin') {
+      navigate('/admin');
+    } else if (accountRole === 'host') {
+      navigate('/host');
+    } else {
+      navigate('/driver');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      console.log('Attempting login with:', form);
       const { data } = await api.post('/api/auth/login', { email: form.email, password: form.password });
-      console.log('Login successful:', data);
-      login(data);
-      
-      // Role-based navigation
-      if (data.user.role === 'admin') {
-        navigate('/admin');
-      } else if (data.user.role === 'host') {
-        navigate('/host');
-      } else {
-        navigate('/driver');
-      }
+      completeLogin(data);
     } catch (err) {
       console.error('Login error:', err);
       console.error('Error response:', err.response?.data);
@@ -43,12 +52,27 @@ const Login = () => {
     }
   };
 
+  const handleGoogleCredential = async (credential) => {
+    setError('');
+    setLoading(true);
+    try {
+      const { data } = await api.post('/api/auth/google', { credential, role: requestedRole || 'driver' });
+      completeLogin(data);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Unable to sign in with Google');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-[calc(100vh-80px)] bg-gradient-to-br from-park-sky via-white to-emerald-50 flex items-center">
       <div className="max-w-4xl mx-auto w-full grid md:grid-cols-2 gap-10 px-6">
         <div className="bg-white rounded-3xl p-8 shadow-xl border border-slate-100">
           <div className="mb-6">
-            <h2 className="text-2xl font-black text-park-navy">Login to ParkBandhu</h2>
+            <h2 className="text-2xl font-black text-park-navy">
+              {requestedRole === 'host' ? 'Host login to ParkBandhu' : 'Login to ParkBandhu'}
+            </h2>
           </div>
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
@@ -102,6 +126,11 @@ const Login = () => {
                   )}
                 </button>
               </div>
+              <div className="mt-2 text-right">
+                <Link to="/forgot-password" className="text-sm font-semibold text-park-blue hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
             </div>
             {error && <p className="text-sm text-rose-500">{error}</p>}
             <button
@@ -112,6 +141,20 @@ const Login = () => {
               {loading ? 'Signing in...' : 'Login'}
             </button>
           </form>
+          <div className="my-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <span className="h-px flex-1 bg-slate-200" />
+            <span>or continue with</span>
+            <span className="h-px flex-1 bg-slate-200" />
+          </div>
+          <GoogleSignInButton onCredential={handleGoogleCredential} onError={setError} disabled={loading} />
+          {requestedRole === 'host' && (
+            <p className="mt-3 text-center text-sm text-slate-500">
+              Need a host account?{' '}
+              <Link to="/register?role=host" className="font-semibold text-park-blue hover:underline">
+                Register as a host
+              </Link>
+            </p>
+          )}
           <p className="text-sm text-center text-slate-500 mt-4">
             New to ParkBandhu?{' '}
             <Link to="/register" className="text-park-blue font-semibold">

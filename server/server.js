@@ -17,13 +17,37 @@ const adminRoutes = require('./src/routes/adminRoutes');
 
 const app = express();
 
+const getAllowedOrigins = () => {
+  const origins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    process.env.CLIENT_URL,
+    process.env.CORS_ORIGIN,
+  ]
+    .filter(Boolean)
+    .flatMap((origin) => origin.split(','))
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  return [...new Set(origins)];
+};
+
+const allowedOrigins = getAllowedOrigins();
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+  },
+  credentials: true,
+};
+
+app.set('trust proxy', 1);
 app.use(express.json());
-app.use(
-  cors({
-    origin: 'http://localhost:3000',
-    credentials: true,
-  })
-);
+app.use(cors(corsOptions));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const http = require('http');
 const { Server } = require('socket.io');
@@ -33,6 +57,10 @@ const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 // health check
+app.get('/', (_req, res) => {
+  res.json({ service: 'ParkBandhu API', status: 'ok' });
+});
+
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -82,8 +110,9 @@ const startServer = async () => {
 
   const io = new Server(server, {
     cors: {
-      origin: 'http://localhost:3000',
+      origin: allowedOrigins.includes('*') ? '*' : allowedOrigins,
       methods: ['GET', 'POST'],
+      credentials: true,
     },
   });
 
@@ -116,4 +145,3 @@ startServer().catch(err => {
   console.error('Fatal startup error:', err);
   process.exit(1);
 });
-

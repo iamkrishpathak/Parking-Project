@@ -313,21 +313,26 @@ const HostDashboard = () => {
               <li>• You control pricing and availability.</li>
               <li>• Drivers discover you through live search.</li>
             </ul>
+            {user && (
+              <p className="pt-2 text-sm text-slate-500">
+                You are signed in as a {user.role}. Host features require an account registered as a host.
+              </p>
+            )}
             <div className="pt-4 flex flex-wrap items-center justify-center md:justify-start gap-3">
+              <Link
+                to="/register?role=host"
+                className="px-6 py-3 rounded-full bg-park-blue text-white font-semibold"
+              >
+                {user ? 'Create a host account' : 'Create host account'}
+              </Link>
               {!user && (
                 <Link
-                  to="/register"
-                  className="px-6 py-3 rounded-full bg-park-blue text-white font-semibold"
+                  to="/login?role=host"
+                  className="px-6 py-3 text-sm font-semibold text-park-blue underline underline-offset-4"
                 >
-                  Create host account
+                  Login as host
                 </Link>
               )}
-              <Link
-                to="/login"
-                className="px-6 py-3 text-sm font-semibold text-park-blue underline underline-offset-4"
-              >
-                Login as host
-              </Link>
             </div>
           </div>
           <div className="flex-1 w-full">

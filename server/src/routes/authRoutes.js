@@ -1,5 +1,5 @@
 const express = require('express');
-const { register, login, updateProfile, uploadKYC, getPendingKYC, updateKYCStatus } = require('../controllers/authController');
+const { register, login, googleLogin, requestPasswordReset, resetPassword, updateProfile, uploadKYC, getPendingKYC, updateKYCStatus } = require('../controllers/authController');
 const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 const upload = require('../middleware/uploadMiddleware');
@@ -8,6 +8,9 @@ const router = express.Router();
 
 router.post('/register', register);
 router.post('/login', login);
+router.post('/google', googleLogin);
+router.post('/forgot-password', requestPasswordReset);
+router.post('/reset-password', resetPassword);
 router.put('/profile', authMiddleware(['driver', 'host', 'admin']), updateProfile);
 router.post('/kyc-upload', authMiddleware(['host']), upload.fields([
   { name: 'identityProof', maxCount: 1 },

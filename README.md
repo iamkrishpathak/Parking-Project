@@ -12,13 +12,13 @@ A full-stack web application for managing parking spaces with integrated KYC (Kn
   - Email notifications for all KYC actions
 - **Admin Dashboard**: Manage parking spaces, users, and KYC requests
 - **Real-time Updates**: Socket.io integration for live booking updates
-- **Interactive Maps**: Leaflet integration for parking location visualization
+- **Interactive Maps**: Google Maps JavaScript API with parking locations and directions
 - **Responsive Design**: Tailwind CSS for mobile-friendly interface
 
 ## 📋 Prerequisites
 
 Before you begin, ensure you have the following installed:
-- **Node.js** (v14 or higher)
+- **Node.js** (v18 or higher)
 - **npm** (v6 or higher)
 - **MongoDB** (local installation or MongoDB Atlas account)
 - **Git**
@@ -36,7 +36,7 @@ cd Parking-Project
 Navigate to the server directory and create a `.env` file:
 ```bash
 cd server
-cp server/.env.example server/.env
+cp .env.example .env
 ```
 
 Edit `.env` and fill in your values:
@@ -50,6 +50,9 @@ MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/?appName=YourApp
 
 # JWT Secret (use a strong random string)
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
+
+# Google Sign-In: use the same Web OAuth client ID in server/.env and client/.env
+GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
 
 # Email Configuration (Gmail SMTP)
 EMAIL_HOST=smtp.gmail.com
@@ -66,25 +69,38 @@ ADMIN_EMAIL=admin@example.com
 
 Navigate to the client directory:
 ```bash
-cd client
+cd ../client
 ```
 
-Create a `.env.local` file if needed (defaults are usually sufficient):
+Create a `.env` file:
 ```env
 REACT_APP_API_URL=http://localhost:5001
+REACT_APP_GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
+REACT_APP_GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+REACT_APP_GOOGLE_MAP_ID=DEMO_MAP_ID
 ```
+
+### 4. Google Maps Setup
+
+Google Maps uses a separate browser API key; it is not the Google Sign-In client ID. In Google Cloud Console, enable **Maps JavaScript API**, create an API key, and restrict it to your website origins (`http://localhost:3000/*` for local development and your deployed site for production). Restrict the key to the Maps JavaScript API. Add it as `REACT_APP_GOOGLE_MAPS_API_KEY` in `client/.env`, then restart the client. `DEMO_MAP_ID` is a development default; you can set your own map ID with `REACT_APP_GOOGLE_MAP_ID`.
+
+Google Maps Platform requires a billing account and usage can be chargeable. Review the [current Maps JavaScript API pricing](https://developers.google.com/maps/billing-and-pricing/pricing) and set usage quotas and billing alerts in Google Cloud before production use.
+
+### 5. Google Sign-In Setup
+
+Create a Web application OAuth client ID in Google Cloud Console and add `http://localhost:3000` as an authorized JavaScript origin. For a deployed client, add its origin too. Put the same client ID in `server/.env` as `GOOGLE_CLIENT_ID` and `client/.env` as `REACT_APP_GOOGLE_CLIENT_ID`, then restart both servers. The API verifies Google's ID token before signing in or creating a user account.
 
 ## 📦 Installation
 
 ### Install Server Dependencies
 ```bash
-cd server
+cd ../server
 npm install
 ```
 
 ### Install Client Dependencies
 ```bash
-cd client
+cd ../client
 npm install
 ```
 
@@ -218,7 +234,7 @@ If port 5001 or 3000 is already in use, you can change the port:
 - React Router v7
 - Tailwind CSS
 - Axios
-- Leaflet & React-Leaflet
+- Google Maps JavaScript API
 - Framer Motion
 - Socket.io Client
 

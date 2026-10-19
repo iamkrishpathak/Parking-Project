@@ -193,9 +193,48 @@ const sendKYCSubmittedNotificationToAdmin = async (userName, userEmail, role) =>
   }
 };
 
+const escapeHtml = (value = '') => String(value).replace(/[&<>"']/g, (character) => ({
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+}[character]));
+
+const sendPasswordResetEmail = async (userEmail, userName, resetUrl) => {
+  const result = await transporter.sendMail({
+    from: process.env.EMAIL_FROM || 'noreply@parkbandhu.com',
+    to: userEmail,
+    subject: 'Reset your ParkBandhu password',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #0f172a;">
+        <div style="background-color: #1d4ed8; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1>Reset your password</h1>
+        </div>
+        <div style="padding: 30px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0 0 8px 8px;">
+          <p>Hello ${escapeHtml(userName)},</p>
+          <p>We received a request to reset your ParkBandhu password. Use the button below within 30 minutes to choose a new one.</p>
+          <p style="text-align: center; margin: 28px 0;">
+            <a href="${escapeHtml(resetUrl)}" style="background-color: #1d4ed8; color: white; padding: 12px 22px; text-decoration: none; border-radius: 999px; display: inline-block;">Reset password</a>
+          </p>
+          <p>If you did not request this, you can ignore this email. Your password will not change.</p>
+        </div>
+      </div>
+    `,
+  });
+
+  console.info('Password reset email submitted to SMTP', {
+    messageId: result.messageId,
+    acceptedCount: result.accepted?.length || 0,
+    rejectedCount: result.rejected?.length || 0,
+  });
+  return result;
+};
+
 module.exports = {
   sendKYCApprovedEmail,
   sendKYCRejectedEmail,
   sendDocumentRequestEmail,
   sendKYCSubmittedNotificationToAdmin,
+  sendPasswordResetEmail,
 };

@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5001',
+  baseURL: API_BASE_URL,
 });
 
 api.interceptors.request.use((config) => {
@@ -20,4 +22,3 @@ api.interceptors.request.use((config) => {
 });
 
 export default api;
-
