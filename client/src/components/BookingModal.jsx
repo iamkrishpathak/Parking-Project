@@ -78,19 +78,19 @@ const BookingModal = ({ space, onClose, onConfirm, isSubmitting }) => {
 
   if (showPayment && paymentStatus === 'processing') {
     return (
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-        <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center">
+      <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 px-4 py-4 backdrop-blur-sm sm:items-center sm:py-6">
+        <div className="my-auto w-full max-w-md rounded-[1.5rem] border border-blue-100 bg-white p-5 text-center shadow-2xl sm:rounded-[2rem] sm:p-8">
           <div className="mb-6">
             <div className="w-16 h-16 mx-auto mb-4 border-4 border-park-blue border-t-transparent rounded-full animate-spin"></div>
-            <h2 className="text-2xl font-bold text-park-navy mb-2">Processing Payment</h2>
-            <p className="text-slate-500">Please wait while we process your payment...</p>
+            <h2 className="text-2xl font-bold text-park-navy mb-2">Confirming Reservation</h2>
+            <p className="text-slate-500">Please wait while we reserve this space...</p>
           </div>
-          <div className="bg-slate-50 rounded-xl p-4 space-y-2">
-            <div className="flex justify-between text-sm">
+          <div className="space-y-2 rounded-2xl bg-slate-50/80 p-4 text-left">
+            <div className="flex flex-wrap justify-between gap-1 text-sm">
               <span className="text-slate-600">Parking Space:</span>
-              <span className="font-semibold">{space.address}</span>
+              <span className="min-w-0 break-words text-right font-semibold">{space.address}</span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex flex-wrap justify-between gap-1 text-sm">
               <span className="text-slate-600">Duration:</span>
               <span className="font-semibold">
                 {startTime && endTime
@@ -101,11 +101,11 @@ const BookingModal = ({ space, onClose, onConfirm, isSubmitting }) => {
                   : 'N/A'}
               </span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex flex-wrap justify-between gap-1 text-sm">
               <span className="text-slate-600">Price per hour:</span>
               <span className="font-semibold">₹{space.pricePerHour}</span>
             </div>
-            <div className="border-t border-slate-200 pt-2 mt-2 flex justify-between">
+            <div className="mt-2 flex flex-wrap justify-between gap-1 border-t border-slate-200 pt-2">
               <span className="text-lg font-bold text-park-navy">Total Amount:</span>
               <span className="text-lg font-bold text-park-blue">₹{calculateCost()}</span>
             </div>
@@ -117,8 +117,8 @@ const BookingModal = ({ space, onClose, onConfirm, isSubmitting }) => {
 
   if (showPayment && paymentStatus === 'failed') {
     return (
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-        <div role="alert" className="bg-white rounded-3xl p-8 max-w-md w-full text-center">
+      <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 px-4 py-4 backdrop-blur-sm sm:items-center sm:py-6">
+        <div role="alert" className="my-auto w-full max-w-md rounded-[1.5rem] border border-blue-100 bg-white p-5 text-center shadow-2xl sm:rounded-[2rem] sm:p-8">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-100 text-rose-600">
             <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -126,9 +126,9 @@ const BookingModal = ({ space, onClose, onConfirm, isSubmitting }) => {
           </div>
           <h2 className="text-2xl font-bold text-park-navy">Booking not confirmed</h2>
           <p className="mt-3 text-sm text-rose-700">{bookingError}</p>
-          <div className="mt-6 flex gap-3">
-            <button type="button" onClick={onClose} className="flex-1 rounded-full border border-slate-200 py-3 font-semibold text-slate-700">Close</button>
-            <button type="button" onClick={() => { setShowPayment(false); setPaymentStatus('pending'); setBookingError(''); }} className="flex-1 rounded-full bg-park-blue py-3 font-semibold text-white">Try again</button>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <button type="button" onClick={onClose} className="flex-1 rounded-full border border-blue-100 py-3 font-bold text-slate-700 transition hover:bg-sky-50">Close</button>
+            <button type="button" onClick={() => { setShowPayment(false); setPaymentStatus('pending'); setBookingError(''); }} className="flex-1 rounded-full bg-park-blue py-3 font-bold text-white transition hover:bg-sky-500">Try again</button>
           </div>
         </div>
       </div>
@@ -155,36 +155,34 @@ const BookingModal = ({ space, onClose, onConfirm, isSubmitting }) => {
 
   if (showPayment && paymentStatus === 'success') {
     return (
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-        <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center">
+      <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 px-4 py-4 backdrop-blur-sm sm:items-center sm:py-6">
+        <div className="my-auto w-full max-w-md rounded-[1.5rem] border border-blue-100 bg-white p-5 text-center shadow-2xl sm:rounded-[2rem] sm:p-8">
           <div className="mb-6">
             <div className="w-16 h-16 mx-auto mb-4 bg-emerald-100 rounded-full flex items-center justify-center">
               <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-park-navy mb-2">Booking Confirmed</h2>
-            <p className="text-slate-500">Your booking has been confirmed.</p>
+            <h2 className="text-2xl font-bold text-park-navy mb-2">Reservation Confirmed</h2>
+            <p className="text-slate-500">Your space is reserved. Payment has not been collected.</p>
           </div>
-          <div className="bg-emerald-50 rounded-xl p-4 space-y-2 mb-4">
-            <div className="flex justify-between text-sm">
+          <div className="mb-4 space-y-2 rounded-2xl border border-emerald-100 bg-emerald-50/80 p-4 text-left">
+            <div className="flex flex-wrap justify-between gap-1 text-sm">
               <span className="text-slate-600">Total amount:</span>
               <span className="font-semibold text-emerald-700">₹{confirmedBooking?.totalCost ?? calculateCost()}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-600">Payment ID:</span>
-              <span className="font-semibold text-emerald-700">
-                {confirmedBooking?.razorpayPaymentId || 'Payment confirmed'}
-              </span>
+            <div className="flex flex-wrap justify-between gap-1 text-sm">
+              <span className="text-slate-600">Payment status:</span>
+              <span className="font-semibold text-amber-700">{confirmedBooking?.paymentStatus || 'Pending'}</span>
             </div>
-            <div className="flex justify-between text-sm pt-2 border-t border-emerald-200">
+            <div className="flex flex-wrap justify-between gap-1 border-t border-emerald-200 pt-2 text-sm">
               <span className="text-slate-600">Location:</span>
-              <span className="font-semibold text-emerald-700 truncate ml-2">{space.address}</span>
+              <span className="ml-2 min-w-0 break-words text-right font-semibold text-emerald-700">{space.address}</span>
             </div>
           </div>
           <button
             onClick={openGoogleMaps}
-            className="w-full mb-3 rounded-full bg-park-blue text-white font-semibold py-3 hover:bg-indigo-600 transition flex items-center justify-center gap-2"
+            className="mb-3 flex w-full items-center justify-center gap-2 rounded-full bg-park-blue py-3 font-bold text-white shadow-sm transition hover:bg-sky-500"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -199,11 +197,14 @@ const BookingModal = ({ space, onClose, onConfirm, isSubmitting }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-      <div className="bg-white rounded-3xl p-6 max-w-md w-full">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-park-navy">Book {space.address}</h2>
-          <button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-800">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 px-4 py-4 backdrop-blur-sm sm:items-center sm:py-6">
+      <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[1.5rem] border border-blue-100 bg-white p-5 shadow-2xl sm:rounded-[2rem] sm:p-8">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[.16em] text-sky-600">Reserve your space</p>
+            <h2 className="mt-1 text-xl font-black leading-snug text-park-navy">Book {space.address}</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close booking form" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-blue-100 text-slate-500 transition hover:bg-sky-50 hover:text-sky-700">
             ✕
           </button>
         </div>
@@ -244,7 +245,7 @@ const BookingModal = ({ space, onClose, onConfirm, isSubmitting }) => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-full bg-park-mint text-park-navy font-semibold py-3 hover:bg-emerald-400 disabled:opacity-70"
+            className="w-full rounded-full bg-park-blue py-3 font-bold text-white shadow-sm transition hover:bg-sky-500 disabled:cursor-wait disabled:opacity-70"
           >
             {isSubmitting ? 'Processing...' : 'Pay & Confirm'}
           </button>

@@ -15,6 +15,7 @@ const { storePrivateFile, getPrivateFilePath } = require('../utils/privateFileSt
 const VEHICLE_TYPES = ['bike', 'car', 'suv'];
 const PROPERTY_TYPES = ['private_driveway', 'residential_society', 'commercial_lot', 'office_lot', 'other'];
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const isSpaceImagePurpose = (purpose) => purpose === 'space_photo' || purpose === 'listing_photo';
 
 const parseAmounts = (amounts, integer = false) => {
   const parsed = {};
@@ -62,8 +63,15 @@ const toPublicSpace = (space, photoFiles = [], { includeAuthorizationEvidence = 
     capacityByVehicle: capacities,
     availability,
     photos: [
+      ...photoFiles
+        .slice()
+        .sort((a, b) => {
+          const aListingPhoto = a.purpose === 'listing_photo' ? 1 : 0;
+          const bListingPhoto = b.purpose === 'listing_photo' ? 1 : 0;
+          return bListingPhoto - aListingPhoto || new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+        })
+        .map((file) => `/api/spaces/public/${plain._id}/photos/${file._id}`),
       ...(plain.photos || []),
-      ...photoFiles.map((file) => `/api/spaces/public/${plain._id}/photos/${file._id}`),
     ],
     verification: {
       status: plain.verificationStatus || (plain.isVerified ? 'pending' : 'draft'),
@@ -85,6 +93,10 @@ const findOwnedSpace = async (req, res) => {
   }
   if (String(space.hostId) !== String(req.user._id) && req.user.role !== 'admin') {
     res.status(403).json({ message: 'You can only access your own parking space' });
+    return null;
+  }
+  if (space.isArchived) {
+    res.status(404).json({ message: 'Listing not found' });
     return null;
   }
   return space;
@@ -207,7 +219,7 @@ exports.updateSpace = async (req, res) => {
       space.isPublished = false;
     }
     await space.save();
-    const files = await SpaceFile.find({ spaceId: space._id, purpose: 'space_photo' }).select('_id purpose mimeType originalName size createdAt');
+    const files = await SpaceFile.find({ spaceId: space._id, purpose: { $in: ['space_photo', 'listing_photo'] } }).select('_id purpose mimeType originalName size createdAt');
     return res.json({ ...toPublicSpace(space, files), evidenceFiles: await getEvidenceSummary(space._id) });
   } catch (error) {
     console.error('Update parking listing error:', error.message);
@@ -216,7 +228,7 @@ exports.updateSpace = async (req, res) => {
 };
 
 const getEvidenceSummary = async (spaceId) => {
-  const files = await SpaceFile.find({ spaceId }).select('_id purpose mimeType originalName size createdAt');
+  const files = await SpaceFile.find({ spaceId, purpose: { $in: ['space_photo', 'property_authorization'] } }).select('_id purpose mimeType originalName size createdAt');
   return files.map((file) => ({
     _id: file._id,
     purpose: file.purpose,
@@ -225,6 +237,50 @@ const getEvidenceSummary = async (spaceId) => {
     size: file.size,
     uploadedAt: file.createdAt,
   }));
+};
+
+exports.uploadListingPhotos = async (req, res) => {
+  const newlySavedPaths = [];
+  try {
+    const space = await findOwnedSpace(req, res);
+    if (!space) return;
+    if (req.user.role !== 'host') return res.status(403).json({ message: 'Only the listing host can add listing photos' });
+    if (space.verificationStatus !== 'approved' || !space.isPublished) {
+      return res.status(409).json({ message: 'Listing photos can be added after this space is approved' });
+    }
+    if (!isHostKycApproved(req.user)) return res.status(403).json({ message: 'Only KYC-approved hosts can add listing photos' });
+    const photoFiles = req.files || [];
+    if (!photoFiles.length) return res.status(400).json({ message: 'Choose at least one photo to upload' });
+    const existingCount = await SpaceFile.countDocuments({ spaceId: space._id, purpose: 'listing_photo' });
+    if (existingCount + photoFiles.length > 5) {
+      return res.status(400).json({ message: 'A listing can have up to 5 public photos' });
+    }
+
+    const records = [];
+    for (const file of photoFiles) {
+      const saved = await storePrivateFile(file.buffer, 'image', file.originalname);
+      newlySavedPaths.push(path.join(saved.directory, saved.privateKey));
+      records.push({ spaceId: space._id, ownerId: space.hostId, purpose: 'listing_photo', ...saved });
+    }
+    const created = await SpaceFile.insertMany(records);
+    return res.status(201).json({
+      message: 'Photos added to your approved listing',
+      photos: created.map(({ _id, purpose, originalName, mimeType, size, createdAt }) => ({
+        _id,
+        purpose,
+        originalName,
+        mimeType,
+        size,
+        uploadedAt: createdAt,
+        url: `/api/spaces/public/${space._id}/photos/${_id}`,
+      })),
+    });
+  } catch (error) {
+    await Promise.all(newlySavedPaths.map((filePath) => fs.promises.unlink(filePath).catch(() => {})));
+    const clientMessage = /invalid|unsupported/i.test(error.message) ? error.message : 'Unable to upload listing photos';
+    console.error('Listing photo upload error:', error.message);
+    return res.status(400).json({ message: clientMessage });
+  }
 };
 
 exports.uploadSpaceFiles = async (req, res) => {
@@ -305,18 +361,45 @@ exports.submitSpaceForReview = async (req, res) => {
 
 exports.getHostedSpaces = async (req, res) => {
   try {
-    const spaces = await Space.find({ hostId: req.user._id }).sort({ createdAt: -1 });
+    const spaces = await Space.find({ hostId: req.user._id, isArchived: { $ne: true } }).sort({ createdAt: -1 });
     const spaceIds = spaces.map((space) => space._id);
-    const evidenceFiles = await SpaceFile.find({ spaceId: { $in: spaceIds } })
+    const evidenceFiles = await SpaceFile.find({ spaceId: { $in: spaceIds }, purpose: { $in: ['space_photo', 'property_authorization'] } })
+      .select('_id spaceId purpose mimeType originalName size createdAt');
+    const listingPhotos = await SpaceFile.find({ spaceId: { $in: spaceIds }, purpose: { $in: ['space_photo', 'listing_photo'] } })
       .select('_id spaceId purpose mimeType originalName size createdAt');
     const result = spaces.map((space) => {
       const files = evidenceFiles.filter((file) => String(file.spaceId) === String(space._id));
-      return { ...toPublicSpace(space, [], { includeAuthorizationEvidence: true }), evidenceFiles: files.map(({ _id, purpose, originalName, mimeType, size, createdAt }) => ({ _id, purpose, originalName, mimeType, size, uploadedAt: createdAt })) };
+      const photos = listingPhotos.filter((file) => String(file.spaceId) === String(space._id));
+      return { ...toPublicSpace(space, photos, { includeAuthorizationEvidence: true }), evidenceFiles: files.map(({ _id, purpose, originalName, mimeType, size, createdAt }) => ({ _id, purpose, originalName, mimeType, size, uploadedAt: createdAt })) };
     });
     res.json(result);
   } catch (error) {
     console.error('Fetch host spaces error:', error.message);
     res.status(500).json({ message: 'Unable to load spaces' });
+  }
+};
+
+exports.archiveSpace = async (req, res) => {
+  try {
+    if (!/^[a-f\d]{24}$/i.test(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid listing ID' });
+    }
+    const space = await Space.findOne({
+      _id: req.params.id,
+      hostId: req.user._id,
+      isArchived: { $ne: true },
+    });
+    if (!space) return res.status(404).json({ message: 'Listing not found' });
+
+    // Keep the record and evidence so existing booking history remains available.
+    space.isArchived = true;
+    space.isPublished = false;
+    await space.save();
+
+    return res.json({ message: 'Listing removed. Existing booking records were preserved.' });
+  } catch (error) {
+    console.error('Archive parking listing error:', error.message);
+    return res.status(500).json({ message: 'Unable to remove this listing' });
   }
 };
 
@@ -337,7 +420,7 @@ exports.streamSpaceEvidence = async (req, res) => {
     if (!space) return;
     const file = await SpaceFile.findOne({ _id: req.params.fileId, spaceId: space._id }).select('+privateKey');
     if (!file) return res.status(404).json({ message: 'Evidence file not found' });
-    const category = file.purpose === 'space_photo' ? 'image' : 'document';
+    const category = isSpaceImagePurpose(file.purpose) ? 'image' : 'document';
     const filePath = getPrivateFilePath(category, file.privateKey);
     if (!filePath) return res.status(404).json({ message: 'Evidence file not found' });
     res.set({
@@ -378,7 +461,7 @@ exports.deleteSpaceEvidence = async (req, res) => {
     }
     const file = await SpaceFile.findOne({ _id: req.params.fileId, spaceId: space._id }).select('+privateKey');
     if (!file) return res.status(404).json({ message: 'Evidence file not found' });
-    const category = file.purpose === 'space_photo' ? 'image' : 'document';
+    const category = isSpaceImagePurpose(file.purpose) ? 'image' : 'document';
     const filePath = getPrivateFilePath(category, file.privateKey);
     await file.deleteOne();
     if (filePath) await fs.promises.unlink(filePath).catch(() => {});
@@ -393,7 +476,7 @@ exports.streamPublicSpacePhoto = async (req, res) => {
   try {
     const space = await Space.findById(req.params.id);
     if (!space || !isListingPublic(space)) return res.status(404).json({ message: 'Photo not found' });
-    const file = await SpaceFile.findOne({ _id: req.params.fileId, spaceId: space._id, purpose: 'space_photo' }).select('+privateKey');
+    const file = await SpaceFile.findOne({ _id: req.params.fileId, spaceId: space._id, purpose: { $in: ['space_photo', 'listing_photo'] } }).select('+privateKey');
     if (!file) return res.status(404).json({ message: 'Photo not found' });
     const filePath = getPrivateFilePath('image', file.privateKey);
     if (!filePath) return res.status(404).json({ message: 'Photo not found' });
@@ -457,8 +540,8 @@ exports.searchSpaces = async (req, res) => {
       location: { $near: { $geometry: { type: 'Point', coordinates: [lng, lat] }, $maxDistance: 5000 } },
     };
     const spaces = await Space.find(query);
-    const publicPhotoFiles = await SpaceFile.find({ spaceId: { $in: spaces.map((space) => space._id) }, purpose: 'space_photo' })
-      .select('_id spaceId purpose mimeType');
+    const publicPhotoFiles = await SpaceFile.find({ spaceId: { $in: spaces.map((space) => space._id) }, purpose: { $in: ['space_photo', 'listing_photo'] } })
+      .select('_id spaceId purpose mimeType createdAt');
     let visibleSpaces = spaces;
     const start = requestedStart;
     const end = requestedEnd;

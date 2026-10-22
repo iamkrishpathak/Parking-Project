@@ -8,7 +8,9 @@ const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { login } = useAuth();
-  const requestedRole = searchParams.get('role') === 'host' ? 'host' : null;
+  const requestedRole = ['host', 'driver'].includes(searchParams.get('role'))
+    ? searchParams.get('role')
+    : null;
   const [form, setForm] = useState({ username: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,12 +22,16 @@ const Login = () => {
 
   const completeLogin = (data) => {
     const accountRole = data.user?.role;
-    if (requestedRole === 'host' && accountRole !== 'host' && accountRole !== 'admin') {
-      setError('This account is registered as a driver. Create or use a host account to open the host dashboard.');
+    if (requestedRole && accountRole !== requestedRole && accountRole !== 'admin') {
+      setError(`This account is registered as a ${accountRole}. Use a ${requestedRole} account to continue.`);
       return;
     }
 
     login(data);
+    if (data.user?.emailVerified === false && accountRole !== 'admin') {
+      navigate('/verify-email');
+      return;
+    }
     if (accountRole === 'admin') {
       navigate('/admin');
     } else if (accountRole === 'host') {
@@ -66,12 +72,12 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-gradient-to-br from-park-sky via-white to-emerald-50 flex items-center">
-      <div className="max-w-4xl mx-auto w-full grid md:grid-cols-2 gap-10 px-6">
-        <div className="bg-white rounded-3xl p-8 shadow-xl border border-slate-100">
+    <div className="flex min-h-[calc(100svh-4.5rem)] items-start bg-gradient-to-br from-white via-blue-50 to-white py-6 sm:items-center sm:py-10">
+      <div className="mx-auto grid w-full max-w-4xl gap-6 px-4 sm:gap-10 sm:px-6 md:grid-cols-2">
+        <div className="rounded-[1.5rem] border border-blue-100 bg-white p-5 shadow-xl shadow-blue-100/70 sm:rounded-[2rem] sm:p-8">
           <div className="mb-6">
             <h2 className="text-2xl font-black text-park-navy">
-              {requestedRole === 'host' ? 'Host login to ParkBandhu' : 'Login to ParkBandhu'}
+              {requestedRole === 'host' ? 'Host login to ParkBandhu' : requestedRole === 'driver' ? 'Driver login to ParkBandhu' : 'Login to ParkBandhu'}
             </h2>
           </div>
           <form className="space-y-4" onSubmit={handleSubmit}>
@@ -82,7 +88,7 @@ const Login = () => {
                 name="username"
                 value={form.username}
                 onChange={handleChange}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2"
+                className="w-full border border-blue-100 rounded-2xl px-4 py-3"
                 required
                 placeholder="Enter your name or username"
               />
@@ -94,7 +100,7 @@ const Login = () => {
                 name="email"
                 value={form.email}
                 onChange={handleChange}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2"
+                className="w-full border border-blue-100 rounded-2xl px-4 py-3"
                 required
               />
             </div>
@@ -106,7 +112,7 @@ const Login = () => {
                   name="password"
                   value={form.password}
                   onChange={handleChange}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 pr-10"
+                  className="w-full border border-blue-100 rounded-2xl px-4 py-3 pr-10"
                   required
                 />
                 <button
@@ -136,7 +142,7 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-full bg-park-blue text-white font-semibold py-3 hover:bg-indigo-600 disabled:opacity-70"
+              className="w-full rounded-full bg-park-blue text-white font-semibold py-3 hover:bg-sky-500 disabled:opacity-70"
             >
               {loading ? 'Signing in...' : 'Login'}
             </button>
@@ -147,7 +153,6 @@ const Login = () => {
             <span className="h-px flex-1 bg-slate-200" />
           </div>
           <GoogleSignInButton onCredential={handleGoogleCredential} onError={setError} disabled={loading} />
-          {!requestedRole && <p className="mt-3 text-center text-sm text-slate-500">Hosting a parking space? <Link to="/login?role=host" className="font-semibold text-park-blue hover:underline">Sign in as a host</Link></p>}
           <p className="text-sm text-center text-slate-500 mt-4">
             Need a {requestedRole === 'host' ? 'host' : 'driver'} account?{' '}
             <Link to={`/register?role=${requestedRole === 'host' ? 'host' : 'driver'}`} className="text-park-blue font-semibold hover:underline">
@@ -156,7 +161,7 @@ const Login = () => {
           </p>
         </div>
         <div className="hidden md:flex flex-col justify-center space-y-4">
-          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-lg">
+          <div className="bg-white border border-blue-100 rounded-3xl p-6 shadow-lg">
             <p className="text-sm uppercase font-semibold text-park-blue">Why drivers ❤️ ParkBandhu!</p>
             <h3 className="text-2xl font-black text-park-navy mt-2">Tap, Park, Relax</h3>
             <p className="text-slate-500 mt-3">

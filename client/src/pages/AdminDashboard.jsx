@@ -82,44 +82,45 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-[calc(100vh-5rem)] bg-gradient-to-br from-white via-blue-50 to-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading KYC requests...</p>
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-park-blue"></div>
+          <p className="text-slate-600">Loading KYC requests...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <main className="min-h-[calc(100vh-5rem)] bg-gradient-to-br from-white via-blue-50 to-white px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-gray-600 mt-2">Review host eligibility and parking listings independently.</p>
+          <p className="text-xs font-extrabold uppercase tracking-[.2em] text-sky-600">ParkBandhu operations</p>
+          <h1 className="mt-2 text-3xl font-black tracking-tight text-park-navy">Admin dashboard</h1>
+          <p className="mt-2 text-slate-600">Review host eligibility and parking listings independently.</p>
         </div>
 
-        <div className="mb-6 flex flex-wrap gap-2 border-b border-slate-200 pb-3">
-          <button type="button" onClick={() => setActiveTab('kyc')} className={`rounded-full px-5 py-2 text-sm font-semibold ${activeTab === 'kyc' ? 'bg-park-blue text-white' : 'bg-white text-slate-600'}`}>Host KYC</button>
-          <button type="button" onClick={() => setActiveTab('spaces')} className={`rounded-full px-5 py-2 text-sm font-semibold ${activeTab === 'spaces' ? 'bg-park-blue text-white' : 'bg-white text-slate-600'}`}>Parking Space Verification</button>
+        <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
+          <button type="button" onClick={() => setActiveTab('kyc')} className={`rounded-xl px-5 py-2.5 text-sm font-bold transition ${activeTab === 'kyc' ? 'bg-park-blue text-white shadow-sm' : 'text-slate-600 hover:bg-sky-50 hover:text-sky-700'}`}>Host KYC</button>
+          <button type="button" onClick={() => setActiveTab('spaces')} className={`rounded-xl px-5 py-2.5 text-sm font-bold transition ${activeTab === 'spaces' ? 'bg-park-blue text-white shadow-sm' : 'text-slate-600 hover:bg-sky-50 hover:text-sky-700'}`}>Parking Space Verification</button>
         </div>
 
         {activeTab === 'spaces' ? <ParkingSpaceVerificationPanel /> : <>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-gray-600 text-sm">Pending Verifications</p>
-            <p className="text-3xl font-bold text-blue-600">{filteredKYC.length}</p>
+          <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
+            <p className="text-sm font-semibold text-slate-500">Pending verifications</p>
+            <p className="mt-2 text-3xl font-black text-park-blue">{filteredKYC.length}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-gray-600 text-sm">Total Users</p>
-            <p className="text-3xl font-bold text-green-600">{pendingKYC.length}</p>
+          <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
+            <p className="text-sm font-semibold text-slate-500">Total users</p>
+            <p className="mt-2 text-3xl font-black text-park-navy">{pendingKYC.length}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-gray-600 text-sm">Parking Owners</p>
-            <p className="text-3xl font-bold text-purple-600">
+          <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
+            <p className="text-sm font-semibold text-slate-500">Parking owners</p>
+            <p className="mt-2 text-3xl font-black text-park-navy">
               {pendingKYC.filter(k => k.role === 'host').length}
             </p>
           </div>
@@ -127,16 +128,16 @@ const AdminDashboard = () => {
 
         {/* Error Alert */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-700">{error}</p>
+          <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4">
+            <p className="text-rose-700">{error}</p>
           </div>
         )}
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <div className="mb-8 rounded-[2rem] border border-blue-100 bg-white p-6 shadow-sm sm:p-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="mb-2 block text-sm font-bold text-slate-600">
                 Search by Name or Email
               </label>
               <input
@@ -144,17 +145,17 @@ const AdminDashboard = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="mb-2 block text-sm font-bold text-slate-600">
                 Filter by Role
               </label>
               <select
                 value={filterRole}
                 onChange={(e) => setFilterRole(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3"
               >
                 <option value="all">All Roles</option>
                 <option value="host">Parking Owner</option>
@@ -164,7 +165,7 @@ const AdminDashboard = () => {
             <div className="flex items-end">
               <button
                 onClick={fetchPendingKYC}
-                className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                className="w-full rounded-full bg-park-blue px-4 py-3 font-bold text-white transition hover:bg-sky-500"
               >
                 Refresh
               </button>
@@ -173,49 +174,50 @@ const AdminDashboard = () => {
         </div>
 
         {/* KYC Requests Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="overflow-hidden rounded-[2rem] border border-blue-100 bg-white shadow-sm">
           {filteredKYC.length === 0 ? (
             <div className="p-12 text-center">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="mx-auto h-12 w-12 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
-              <p className="mt-4 text-gray-600 font-medium">No pending KYC requests</p>
-              <p className="text-gray-500 text-sm">All verifications are up to date!</p>
+              <p className="mt-4 font-bold text-park-navy">No pending KYC requests</p>
+              <p className="text-sm text-slate-500">All verifications are up to date!</p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px]">
+              <thead className="border-b border-blue-100 bg-sky-50/70">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Submitted</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Action</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Email</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Role</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Submitted</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-blue-50">
                 {filteredKYC.map((kyc) => (
-                  <tr key={kyc._id} className="hover:bg-gray-50 transition">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{kyc.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{kyc.email}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                  <tr key={kyc._id} className="transition hover:bg-sky-50/50">
+                    <td className="whitespace-nowrap px-3 py-4 text-sm font-bold text-park-navy sm:px-6">{kyc.name}</td>
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-slate-600 sm:px-6">{kyc.email}</td>
+                    <td className="whitespace-nowrap px-3 py-4 text-sm sm:px-6">
+                      <span className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-bold leading-5 text-sky-800">
                         {kyc.role === 'host' ? 'Parking Owner' : 'Driver'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-slate-600 sm:px-6">
                       {kyc.kycSubmittedAt ? new Date(kyc.kycSubmittedAt).toLocaleDateString() : 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                    <td className="whitespace-nowrap px-3 py-4 text-sm sm:px-6">
+                      <span className="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-bold leading-5 text-amber-800">
                         {kyc.kycStatus}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="whitespace-nowrap px-3 py-4 text-sm sm:px-6">
                       <button
                         onClick={() => setSelectedKYC(kyc)}
-                        className="text-blue-600 hover:text-blue-900 font-medium"
+                        className="rounded-full bg-sky-50 px-4 py-2 font-bold text-sky-700 transition hover:bg-sky-100"
                       >
                         Review
                       </button>
@@ -224,6 +226,7 @@ const AdminDashboard = () => {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
         </>}
@@ -239,7 +242,7 @@ const AdminDashboard = () => {
           onClose={() => setSelectedKYC(null)}
         />
       )}
-    </div>
+    </main>
   );
 };
 

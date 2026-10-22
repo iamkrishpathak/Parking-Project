@@ -1,6 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, TicketCheck, X } from 'lucide-react';
+import {
+  ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  Download,
+  History,
+  MapPin,
+  RefreshCw,
+  Search,
+  Star,
+  TicketCheck,
+  UserRound,
+  X,
+} from 'lucide-react';
 import QRCode from 'qrcode';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -186,44 +200,97 @@ const DriverProfile = () => {
   const upcomingBookings = getUpcomingBookings();
   const currentBookings = [...activeBookings, ...upcomingBookings];
   const pastBookings = getPastBookings();
+  const userInitial = user?.name?.trim()?.[0]?.toUpperCase() || 'D';
 
   if (!isDriver) return null;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-black text-park-navy mb-2">My Profile</h1>
-        <p className="text-slate-600">Manage your bookings, profile, and queries</p>
-      </div>
+    <main className="min-h-[calc(100vh-5rem)] bg-gradient-to-br from-white via-blue-50 to-white px-4 py-8 sm:px-6 lg:py-12">
+      <div className="mx-auto max-w-6xl">
+        <section className="relative isolate mb-7 overflow-hidden rounded-[2rem] border border-blue-100 bg-gradient-to-br from-white via-sky-50 to-cyan-50 p-6 shadow-sm sm:p-9">
+          <div aria-hidden="true" className="absolute -right-12 -top-20 h-56 w-56 rounded-full bg-sky-200/40 blur-3xl" />
+          <div aria-hidden="true" className="absolute -bottom-28 left-1/3 h-48 w-72 rounded-full bg-cyan-100/70 blur-3xl" />
+          <div className="relative flex flex-col gap-7 md:flex-row md:items-center md:justify-between">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-white/90 px-3 py-1.5 text-xs font-bold uppercase tracking-[.16em] text-sky-700 shadow-sm">
+                <UserRound size={14} /> Driver account
+              </div>
+              <h1 className="mt-4 text-3xl font-black leading-tight tracking-tight text-park-navy sm:text-4xl">
+                Your parking, <span className="bg-gradient-to-r from-sky-500 via-park-blue to-indigo-400 bg-clip-text text-transparent">all in one place.</span>
+              </h1>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">
+                Manage your reservations, find your ticket, and keep your ParkBandhu profile up to date.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate('/driver')}
+                className="mt-6 inline-flex items-center gap-2 rounded-full bg-park-blue px-5 py-3 text-sm font-bold text-white shadow-lg shadow-sky-200 transition hover:-translate-y-0.5 hover:bg-sky-500"
+              >
+                Find parking <ArrowRight size={16} />
+              </button>
+            </div>
+            <div className="flex w-full items-center gap-4 rounded-2xl border border-white bg-white/90 p-4 shadow-sm backdrop-blur-sm md:w-auto md:min-w-60">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400 to-park-blue text-xl font-black text-white shadow-md shadow-sky-200">
+                {userInitial}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate font-extrabold text-park-navy">{user?.name || 'Driver'}</p>
+                <p className="mt-0.5 truncate text-sm text-slate-500">{user?.email || 'ParkBandhu driver'}</p>
+                <span className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-sky-700">
+                  <CheckCircle2 size={13} /> Driver account
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section aria-label="Booking summary" className="mb-7 grid gap-3 sm:grid-cols-3">
+          {[
+            { label: 'Active now', value: activeBookings.length, hint: 'Reservations in progress', icon: CheckCircle2, tone: 'text-emerald-600 bg-emerald-50' },
+            { label: 'Upcoming', value: upcomingBookings.length, hint: 'Your next parking plans', icon: CalendarDays, tone: 'text-sky-700 bg-sky-50' },
+            { label: 'Completed', value: pastBookings.length, hint: 'Past reservations', icon: History, tone: 'text-indigo-600 bg-indigo-50' },
+          ].map(({ label, value, hint, icon: Icon, tone }) => (
+            <article key={label} className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-500">{label}</p>
+                  <p className="mt-2 text-3xl font-black tracking-tight text-park-navy">{value}</p>
+                  <p className="mt-1 text-xs text-slate-500">{hint}</p>
+                </div>
+                <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${tone}`}><Icon size={20} /></span>
+              </div>
+            </article>
+          ))}
+        </section>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-slate-200">
+      <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
         <button
           onClick={() => setActiveTab('active')}
-          className={`px-4 py-2 font-semibold text-sm transition ${
+          className={`rounded-xl px-4 py-2.5 text-sm font-bold transition ${
             activeTab === 'active'
-              ? 'text-park-blue border-b-2 border-park-blue'
-              : 'text-slate-600 hover:text-park-blue'
+              ? 'bg-park-blue text-white shadow-md shadow-sky-100'
+              : 'text-slate-600 hover:bg-sky-50 hover:text-sky-700'
           }`}
         >
           Bookings ({currentBookings.length})
         </button>
         <button
           onClick={() => setActiveTab('past')}
-          className={`px-4 py-2 font-semibold text-sm transition ${
+          className={`rounded-xl px-4 py-2.5 text-sm font-bold transition ${
             activeTab === 'past'
-              ? 'text-park-blue border-b-2 border-park-blue'
-              : 'text-slate-600 hover:text-park-blue'
+              ? 'bg-park-blue text-white shadow-md shadow-sky-100'
+              : 'text-slate-600 hover:bg-sky-50 hover:text-sky-700'
           }`}
         >
           Past Bookings ({pastBookings.length})
         </button>
         <button
           onClick={() => setActiveTab('profile')}
-          className={`px-4 py-2 font-semibold text-sm transition ${
+          className={`rounded-xl px-4 py-2.5 text-sm font-bold transition ${
             activeTab === 'profile'
-              ? 'text-park-blue border-b-2 border-park-blue'
-              : 'text-slate-600 hover:text-park-blue'
+              ? 'bg-park-blue text-white shadow-md shadow-sky-100'
+              : 'text-slate-600 hover:bg-sky-50 hover:text-sky-700'
           }`}
         >
           Profile & Ratings
@@ -232,202 +299,166 @@ const DriverProfile = () => {
 
       {message && (
         <div
-          className={`mb-4 p-3 rounded-xl ${
+          className={`mb-4 rounded-2xl border p-4 text-sm font-medium ${
             message.includes('success') || message.includes('submitted')
-              ? 'bg-emerald-50 text-emerald-700'
-              : 'bg-rose-50 text-rose-700'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-rose-200 bg-rose-50 text-rose-700'
           }`}
         >
           {message}
         </div>
       )}
       {bookingsError && (
-        <div role="alert" className="mb-4 rounded-xl bg-rose-50 p-3 text-rose-700">
+        <div role="alert" className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-700">
           {bookingsError}
         </div>
       )}
 
       {/* Active Sessions Tab */}
       {activeTab === 'active' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-park-navy">Your Current & Upcoming Bookings</h3>
+        <section className="rounded-[2rem] border border-blue-100 bg-white p-5 shadow-sm sm:p-7">
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[.18em] text-sky-600">Your reservations</p>
+              <h2 className="mt-1 text-2xl font-black tracking-tight text-park-navy">Current & upcoming bookings</h2>
+            </div>
             <button
+              type="button"
               onClick={fetchBookings}
-              className="px-3 py-1 rounded-full bg-park-blue text-white text-xs font-semibold hover:bg-indigo-600 transition"
+              disabled={bookingsLoading}
+              className="inline-flex items-center justify-center gap-2 self-start rounded-full border border-blue-100 bg-white px-4 py-2.5 text-sm font-bold text-sky-700 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-wait disabled:opacity-60 sm:self-auto"
               title="Refresh bookings"
             >
+              <RefreshCw size={16} className={bookingsLoading ? 'animate-spin' : ''} />
               Refresh
             </button>
           </div>
           {bookingsLoading && bookings.length === 0 ? (
-            <p className="text-slate-500">Loading...</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              {[0, 1].map((item) => <div key={item} className="h-52 animate-pulse rounded-3xl bg-slate-100" />)}
+            </div>
           ) : currentBookings.length === 0 ? (
-            <div className="bg-white rounded-3xl p-8 text-center border border-slate-100">
-              <p className="text-slate-500">No current or upcoming parking bookings</p>
+            <div className="rounded-3xl border border-dashed border-blue-200 bg-gradient-to-br from-sky-50/80 to-white px-6 py-12 text-center">
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-sky-600 shadow-sm"><Search size={23} /></span>
+              <h3 className="mt-4 text-lg font-extrabold text-park-navy">No bookings here yet</h3>
+              <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">Your active and upcoming parking reservations will appear here.</p>
+              <button type="button" onClick={() => navigate('/driver')} className="mt-5 inline-flex items-center gap-2 rounded-full bg-park-blue px-5 py-3 text-sm font-bold text-white shadow-md shadow-sky-100 transition hover:-translate-y-0.5 hover:bg-sky-500">
+                Find a parking space <ArrowRight size={16} />
+              </button>
             </div>
           ) : (
-            currentBookings.map((booking) => {
+            <div className="grid gap-4 lg:grid-cols-2">
+              {currentBookings.map((booking) => {
               const isActive = new Date(booking.startTime) <= new Date() && new Date(booking.endTime) > new Date();
               return (
                 <div
                   key={booking._id}
-                  className={`bg-white rounded-3xl p-6 border shadow-sm ${
-                    isActive ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-100'
-                  }`}
+                  className="group flex h-full flex-col rounded-3xl border border-blue-100 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-lg hover:shadow-blue-100/60 sm:p-6"
                 >
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-park-navy mb-2">
-                        {booking.spaceId?.address || 'Parking Space'}
-                      </h3>
-                      <div className="space-y-1 text-sm text-slate-600">
-                        <p>
-                          <span className="font-semibold">Start:</span>{' '}
-                          {new Date(booking.startTime).toLocaleString('en-IN', {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                          })}
-                        </p>
-                        <p>
-                          <span className="font-semibold">End:</span>{' '}
-                          {new Date(booking.endTime).toLocaleString('en-IN', {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                          })}
-                        </p>
-                        <p>
-                          <span className="font-semibold">Amount Paid:</span> ₹{booking.totalCost}
-                        </p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600"><MapPin size={19} /></span>
+                      <div className="min-w-0">
+                        <h3 className="line-clamp-2 text-lg font-extrabold leading-snug text-park-navy">{booking.spaceId?.title || booking.spaceId?.address || 'Parking Space'}</h3>
+                        {booking.spaceId?.title && booking.spaceId?.address && <p className="mt-1 line-clamp-2 text-sm text-slate-500">{booking.spaceId.address}</p>}
                       </div>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <button
-                        onClick={() => openGoogleMaps(booking.spaceId)}
-                        className="px-6 py-3 rounded-full bg-park-blue text-white font-semibold hover:bg-indigo-600 transition flex items-center justify-center gap-2"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                        </svg>
-                        Get Directions
+                    <span className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-extrabold ${isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'}`}>
+                      {isActive ? 'Active now' : 'Upcoming'}
+                    </span>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 rounded-2xl bg-slate-50/80 p-4 sm:grid-cols-2">
+                    <div className="flex items-start gap-2.5 text-sm">
+                      <CalendarDays size={16} className="mt-0.5 shrink-0 text-sky-600" />
+                      <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Arrival</p><p className="mt-1 font-bold text-slate-700">{new Date(booking.startTime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p></div>
+                    </div>
+                    <div className="flex items-start gap-2.5 text-sm">
+                      <Clock3 size={16} className="mt-0.5 shrink-0 text-sky-600" />
+                      <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Departure</p><p className="mt-1 font-bold text-slate-700">{new Date(booking.endTime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p></div>
+                    </div>
+                  </div>
+
+                  <div className="mt-auto flex flex-col gap-3 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total paid</p><p className="mt-0.5 text-xl font-black text-park-navy">₹{booking.totalCost}</p></div>
+                    <div className="grid grid-cols-2 gap-2 sm:flex">
+                      <button type="button" onClick={() => openGoogleMaps(booking.spaceId)} className="inline-flex items-center justify-center gap-2 rounded-full border border-blue-100 bg-white px-4 py-2.5 text-sm font-bold text-sky-700 transition hover:bg-sky-50">
+                        <MapPin size={16} /> Directions
                       </button>
-                      <div className="flex flex-col gap-2 items-end">
-                        <div className={`px-4 py-2 rounded-full text-sm font-semibold text-center ${isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>
-                          {isActive ? 'Active' : 'Upcoming'}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTicket(booking)}
-                          className="inline-flex items-center gap-2 rounded-full bg-park-blue px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-600"
-                        >
-                          <TicketCheck size={16} /> View ticket
-                        </button>
-                      </div>
+                      <button type="button" onClick={() => setSelectedTicket(booking)} className="inline-flex items-center justify-center gap-2 rounded-full bg-park-blue px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-sky-100 transition hover:bg-sky-500">
+                        <TicketCheck size={16} /> View ticket
+                      </button>
                     </div>
                   </div>
                 </div>
               );
-            })
+              })}
+            </div>
           )}
-        </div>
+        </section>
       )}
 
       {/* Past Bookings Tab */}
       {activeTab === 'past' && (
-        <div className="space-y-4">
+        <section className="rounded-[2rem] border border-blue-100 bg-white p-5 shadow-sm sm:p-7">
+          <div className="mb-6">
+            <p className="text-xs font-extrabold uppercase tracking-[.18em] text-sky-600">Your history</p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-park-navy">Past bookings</h2>
+          </div>
           {bookingsLoading && bookings.length === 0 ? (
-            <p className="text-slate-500">Loading...</p>
+            <div className="grid gap-4 md:grid-cols-2">{[0, 1].map((item) => <div key={item} className="h-44 animate-pulse rounded-3xl bg-slate-100" />)}</div>
           ) : pastBookings.length === 0 ? (
-            <div className="bg-white rounded-3xl p-8 text-center border border-slate-100">
-              <p className="text-slate-500">No past bookings</p>
+            <div className="rounded-3xl border border-dashed border-blue-200 bg-gradient-to-br from-sky-50/80 to-white px-6 py-12 text-center">
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-sky-600 shadow-sm"><History size={23} /></span>
+              <h3 className="mt-4 text-lg font-extrabold text-park-navy">Your completed trips will show here</h3>
+              <p className="mt-2 text-sm text-slate-500">There are no past bookings to display yet.</p>
             </div>
           ) : (
-            pastBookings.map((booking) => (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {pastBookings.map((booking) => (
               <div
                 key={booking._id}
-                className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm"
+                className="flex h-full flex-col rounded-3xl border border-blue-100 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-lg hover:shadow-blue-100/60 sm:p-6"
               >
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-park-navy mb-2">
-                      {booking.spaceId?.address || 'Parking Space'}
-                    </h3>
-                    <div className="space-y-1 text-sm text-slate-600">
-                      <p>
-                        <span className="font-semibold">Date:</span>{' '}
-                        {new Date(booking.startTime).toLocaleString('en-IN', {
-                          dateStyle: 'medium',
-                          timeStyle: 'short',
-                        })}{' '}
-                        -{' '}
-                        {new Date(booking.endTime).toLocaleString('en-IN', {
-                          timeStyle: 'short',
-                        })}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Amount Paid:</span> ₹{booking.totalCost}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Payment Status:</span>{' '}
-                        <span
-                          className={
-                            booking.paymentStatus === 'Paid'
-                              ? 'text-emerald-600 font-semibold'
-                              : 'text-amber-600 font-semibold'
-                          }
-                        >
-                          {booking.paymentStatus}
-                        </span>
-                      </p>
-                    </div>
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><MapPin size={19} /></span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="line-clamp-2 text-lg font-extrabold leading-snug text-park-navy">{booking.spaceId?.title || booking.spaceId?.address || 'Parking Space'}</h3>
+                    {booking.spaceId?.title && booking.spaceId?.address && <p className="mt-1 line-clamp-2 text-sm text-slate-500">{booking.spaceId.address}</p>}
                   </div>
-                  <button
-                    onClick={() => {
-                      setQueryForm({ ...queryForm, bookingId: booking._id });
-                      setShowQueryModal(true);
-                    }}
-                    className="px-6 py-3 rounded-full border-2 border-park-blue text-park-blue font-semibold hover:bg-park-blue hover:text-white transition"
-                  >
-                    Raise Query
-                  </button>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedTicket(booking)}
-                      className="inline-flex items-center gap-2 rounded-full bg-park-blue px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-600"
-                    >
-                      <TicketCheck size={16} /> View ticket
-                    </button>
+                </div>
+                <div className="mt-5 grid gap-3 rounded-2xl bg-slate-50/80 p-4 sm:grid-cols-2">
+                  <div className="flex items-start gap-2.5 text-sm"><CalendarDays size={16} className="mt-0.5 shrink-0 text-sky-600" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Date</p><p className="mt-1 font-bold text-slate-700">{new Date(booking.startTime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p></div></div>
+                  <div className="flex items-start gap-2.5 text-sm"><CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600" /><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Payment</p><p className={`mt-1 font-bold ${booking.paymentStatus === 'Paid' ? 'text-emerald-700' : 'text-amber-700'}`}>{booking.paymentStatus || 'Pending'}</p></div></div>
+                </div>
+                <div className="mt-auto flex flex-col gap-3 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total paid</p><p className="mt-0.5 text-xl font-black text-park-navy">₹{booking.totalCost}</p></div>
+                  <div className="grid grid-cols-2 gap-2 sm:flex">
+                    <button type="button" onClick={() => { setQueryForm({ ...queryForm, bookingId: booking._id }); setShowQueryModal(true); }} className="rounded-full border border-blue-100 bg-white px-4 py-2.5 text-sm font-bold text-sky-700 transition hover:bg-sky-50">Raise query</button>
+                    <button type="button" onClick={() => setSelectedTicket(booking)} className="inline-flex items-center justify-center gap-2 rounded-full bg-park-blue px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-sky-100 transition hover:bg-sky-500"><TicketCheck size={16} /> View ticket</button>
                   </div>
                 </div>
               </div>
-            ))
+              ))}
+            </div>
           )}
-        </div>
+        </section>
       )}
 
       {/* Profile & Ratings Tab */}
       {activeTab === 'profile' && (
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid gap-5 lg:grid-cols-2">
           {/* Profile Section */}
-          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-park-navy">Profile Details</h2>
+          <section className="rounded-[2rem] border border-blue-100 bg-white p-6 shadow-sm sm:p-8">
+            <div className="mb-7 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[.18em] text-sky-600">Your account</p>
+                <h2 className="mt-1 text-2xl font-black tracking-tight text-park-navy">Profile details</h2>
+              </div>
               {!isEditing && (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="px-4 py-2 rounded-full bg-park-blue text-white text-sm font-semibold hover:bg-indigo-600"
+                  className="rounded-full bg-park-blue px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-sky-100 transition hover:-translate-y-0.5 hover:bg-sky-500"
                 >
                   Edit
                 </button>
@@ -436,41 +467,41 @@ const DriverProfile = () => {
             {isEditing ? (
               <form onSubmit={handleProfileUpdate} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-600 mb-1">Name</label>
+                  <label className="mb-1.5 block text-sm font-bold text-slate-600">Name</label>
                   <input
                     type="text"
                     value={profileForm.name}
                     onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2"
+                    className="w-full rounded-2xl border border-blue-100 bg-white px-4 py-3 text-park-navy outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-600 mb-1">Email</label>
+                  <label className="mb-1.5 block text-sm font-bold text-slate-600">Email</label>
                   <input
                     type="email"
                     value={profileForm.email}
                     onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2"
+                    className="w-full rounded-2xl border border-blue-100 bg-white px-4 py-3 text-park-navy outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-600 mb-1">Phone</label>
+                  <label className="mb-1.5 block text-sm font-bold text-slate-600">Phone</label>
                   <input
                     type="tel"
                     value={profileForm.phone}
                     onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2"
+                    className="w-full rounded-2xl border border-blue-100 bg-white px-4 py-3 text-park-navy outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
                   />
                 </div>
                 <div className="flex gap-3">
                   <button
                     type="submit"
                     disabled={loading}
-                    className="px-6 py-2 rounded-full bg-park-blue text-white font-semibold hover:bg-indigo-600 disabled:opacity-70"
+                    className="rounded-full bg-park-blue px-6 py-3 font-bold text-white shadow-md shadow-sky-100 transition hover:bg-sky-500 disabled:opacity-70"
                   >
-                    Save
+                    {loading ? 'Saving…' : 'Save changes'}
                   </button>
                   <button
                     type="button"
@@ -482,97 +513,94 @@ const DriverProfile = () => {
                         phone: user?.phone || '',
                       });
                     }}
-                    className="px-6 py-2 rounded-full border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50"
+                    className="rounded-full border border-blue-100 px-6 py-3 font-bold text-slate-600 transition hover:bg-sky-50"
                   >
                     Cancel
                   </button>
                 </div>
               </form>
             ) : (
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">Name</p>
-                  <p className="text-lg font-semibold text-park-navy">{user?.name || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">Email</p>
-                  <p className="text-lg font-semibold text-park-navy">{user?.email || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">Phone</p>
-                  <p className="text-lg font-semibold text-park-navy">{user?.phone || 'Not provided'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">Role</p>
-                  <p className="text-lg font-semibold text-park-navy capitalize">{user?.role || 'N/A'}</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Ratings Section */}
-          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-            <h2 className="text-2xl font-bold text-park-navy mb-6">Ratings & Reviews</h2>
-            <div className="text-center py-8">
-              <div className="text-5xl font-black text-park-blue mb-2">4.8</div>
-              <div className="flex justify-center gap-1 mb-4">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <svg
-                    key={star}
-                    className="w-6 h-6 text-amber-400"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
+              <div className="space-y-3">
+                {[
+                  ['Name', user?.name || 'N/A'],
+                  ['Email', user?.email || 'N/A'],
+                  ['Phone', user?.phone || 'Not provided'],
+                  ['Role', user?.role || 'N/A'],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-2xl bg-slate-50/80 px-4 py-3.5">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</p>
+                    <p className="mt-1 break-words font-bold capitalize text-park-navy">{value}</p>
+                  </div>
                 ))}
               </div>
-              <p className="text-slate-600">Based on {pastBookings.length} completed bookings</p>
-              <p className="text-sm text-slate-500 mt-4">
+            )}
+          </section>
+
+          {/* Ratings Section */}
+          <section className="relative isolate overflow-hidden rounded-[2rem] border border-blue-100 bg-gradient-to-br from-white via-sky-50 to-cyan-50 p-6 shadow-sm sm:p-8">
+            <div aria-hidden="true" className="absolute -right-12 -top-14 -z-10 h-44 w-44 rounded-full bg-sky-200/40 blur-3xl" />
+            <div className="mb-7">
+              <p className="text-xs font-extrabold uppercase tracking-[.18em] text-sky-600">Driver feedback</p>
+              <h2 className="mt-1 text-2xl font-black tracking-tight text-park-navy">Ratings & reviews</h2>
+            </div>
+            <div className="rounded-3xl border border-white bg-white/85 px-5 py-8 text-center shadow-sm backdrop-blur-sm">
+              <div className="text-5xl font-black tracking-tight text-park-blue">4.8</div>
+              <div className="mt-3 flex justify-center gap-1" aria-label="4.8 out of 5 stars">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star key={star} size={20} fill="currentColor" className="text-amber-400" />
+                ))}
+              </div>
+              <p className="mt-3 font-semibold text-slate-600">Based on {pastBookings.length} completed bookings</p>
+              <p className="mx-auto mt-4 max-w-sm text-sm leading-6 text-slate-500">
                 Ratings will appear here once hosts rate your parking sessions
               </p>
             </div>
-          </div>
+          </section>
         </div>
       )}
 
       {/* Query Modal */}
       {showQueryModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-park-navy">Raise a Query</h2>
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 px-3 py-4 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6">
+          <div className="my-auto w-full max-w-md rounded-[1.5rem] border border-blue-100 bg-white p-5 shadow-2xl sm:rounded-[2rem] sm:p-8">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[.18em] text-sky-600">Booking support</p>
+                <h2 className="mt-1 text-2xl font-black tracking-tight text-park-navy">Raise a query</h2>
+              </div>
               <button
+                type="button"
                 onClick={() => {
                   setShowQueryModal(false);
                   setQueryForm({ bookingId: '', message: '' });
                 }}
-                className="text-slate-500 hover:text-slate-800"
+                aria-label="Close query form"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-blue-100 text-slate-500 transition hover:bg-sky-50 hover:text-sky-700"
               >
-                ✕
+                <X size={18} />
               </button>
             </div>
             <form onSubmit={handleQuerySubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-600 mb-1">
-                  Your Query/Complaint
+                <label className="mb-1.5 block text-sm font-bold text-slate-600">
+                  Your query or complaint
                 </label>
                 <textarea
                   value={queryForm.message}
                   onChange={(e) => setQueryForm({ ...queryForm, message: e.target.value })}
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2"
+                  className="w-full resize-y rounded-2xl border border-blue-100 bg-white px-4 py-3 text-park-navy outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
                   rows={4}
                   placeholder="Describe your issue or query..."
                   required
                 />
               </div>
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 rounded-full bg-park-blue text-white font-semibold py-3 hover:bg-indigo-600 disabled:opacity-70"
+                  className="flex-1 rounded-full bg-park-blue py-3 font-bold text-white shadow-md shadow-sky-100 transition hover:bg-sky-500 disabled:opacity-70"
                 >
-                  Submit Query
+                  {loading ? 'Submitting…' : 'Submit query'}
                 </button>
                 <button
                   type="button"
@@ -580,7 +608,7 @@ const DriverProfile = () => {
                     setShowQueryModal(false);
                     setQueryForm({ bookingId: '', message: '' });
                   }}
-                  className="px-6 py-3 rounded-full border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50"
+                  className="rounded-full border border-blue-100 px-5 py-3 font-bold text-slate-600 transition hover:bg-sky-50"
                 >
                   Cancel
                 </button>
@@ -592,7 +620,7 @@ const DriverProfile = () => {
 
       {selectedTicket && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:items-center sm:p-4"
           onClick={(event) => {
             if (event.target === event.currentTarget) setSelectedTicket(null);
           }}
@@ -601,10 +629,10 @@ const DriverProfile = () => {
             role="dialog"
             aria-modal="true"
             aria-labelledby="booking-ticket-title"
-            className="w-full max-w-lg rounded-[2rem] bg-white p-5 shadow-2xl sm:p-7"
+            className="my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-[1.5rem] bg-white p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:rounded-[2rem] sm:p-7"
           >
             <div className="booking-ticket-print overflow-hidden rounded-3xl border border-slate-200 bg-white">
-              <div className="bg-gradient-to-r from-sky-500 to-cyan-400 p-6 text-white sm:p-7">
+              <div className="bg-gradient-to-r from-sky-500 to-cyan-400 p-4 text-white sm:p-7">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-bold tracking-wide">ParkBandhu</p>
@@ -621,7 +649,7 @@ const DriverProfile = () => {
                 <p className="mt-4 break-all text-xs font-medium text-white/90">Booking ID: {selectedTicket._id}</p>
               </div>
 
-              <div className="space-y-5 p-6 sm:p-7">
+              <div className="space-y-5 p-4 sm:p-7">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[.16em] text-sky-700">Parking location</p>
                   <h3 className="mt-1 text-lg font-extrabold text-park-navy">
@@ -632,7 +660,7 @@ const DriverProfile = () => {
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 border-y border-dashed border-slate-200 py-5">
+                <div className="grid grid-cols-1 gap-4 border-y border-dashed border-slate-200 py-5 min-[420px]:grid-cols-2">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Arrival</p>
                     <p className="mt-1 text-sm font-bold text-slate-800">
@@ -655,8 +683,8 @@ const DriverProfile = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-4 border-b border-dashed border-slate-200 pb-5">
-                  <div>
+                <div className="flex flex-col items-start justify-between gap-4 border-b border-dashed border-slate-200 pb-5 min-[420px]:flex-row min-[420px]:items-center">
+                  <div className="min-w-0">
                     <p className="text-xs font-bold uppercase tracking-wide text-sky-700">Booking QR</p>
                     <p className="mt-1 text-sm font-semibold text-slate-700">Scan to read the booking ID</p>
                     <p className="mt-1 text-xs text-slate-400">{selectedTicket._id}</p>
@@ -688,19 +716,19 @@ const DriverProfile = () => {
               </div>
             </div>
 
-            <div className="booking-ticket-no-print mt-5 flex gap-3">
+            <div className="booking-ticket-no-print mt-5 flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
                 onClick={() => window.print()}
                 disabled={!ticketQr && !ticketQrError}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-park-blue px-5 py-3 font-bold text-white transition hover:bg-indigo-600 disabled:cursor-wait disabled:opacity-60"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-park-blue px-5 py-3 font-bold text-white shadow-md shadow-sky-100 transition hover:bg-sky-500 disabled:cursor-wait disabled:opacity-60"
               >
                 <Download size={17} /> {ticketQr || ticketQrError ? 'Download ticket' : 'Preparing ticket…'}
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedTicket(null)}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-blue-100 px-5 py-3 font-bold text-slate-600 transition hover:bg-sky-50"
               >
                 <X size={17} /> Close
               </button>
@@ -709,7 +737,8 @@ const DriverProfile = () => {
           </section>
         </div>
       )}
-    </div>
+      </div>
+    </main>
   );
 };
 

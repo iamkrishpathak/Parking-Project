@@ -13,9 +13,10 @@ import {
   ParkingCircle,
   RefreshCw,
   Search,
+  ShieldCheck,
   UserRound,
 } from 'lucide-react';
-import api from '../api/client';
+import api, { getApiAssetUrl } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import MapView from '../components/MapView';
 import BookingModal from '../components/BookingModal';
@@ -29,7 +30,7 @@ const DEFAULT_FILTERS = {
 };
 
 const fieldClassName =
-  'mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100';
+  'mt-1.5 w-full rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100';
 
 const formatDateTime = (value) => {
   if (!value) return 'Time not available';
@@ -194,11 +195,10 @@ const DriverDashboard = () => {
     try {
       const { data: booking } = await api.post('/api/bookings/create', {
         spaceId: selectedSpace._id,
-        startTime,
-        endTime,
-        simulatePayment: true,
+        startTime: new Date(startTime).toISOString(),
+        endTime: new Date(endTime).toISOString(),
       });
-      setNotice({ type: 'success', text: 'Booking confirmed. You can find it under Your parking.' });
+      setNotice({ type: 'success', text: 'Reservation confirmed. Payment is still pending; you can find it under Your parking.' });
       if (booking?._id) {
         setBookings((current) => [booking, ...current.filter((item) => item._id !== booking._id)]);
       }
@@ -218,27 +218,80 @@ const DriverDashboard = () => {
 
   if (!isDriver) {
     return (
-      <main className="min-h-[calc(100vh-5rem)] bg-slate-50 px-4 py-12 sm:px-6 lg:py-20">
-        <section className="mx-auto max-w-5xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
-          <div className="grid md:grid-cols-[1.1fr_.9fr]">
-            <div className="p-8 sm:p-12">
-              <p className="text-xs font-bold uppercase tracking-[.2em] text-sky-600">ParkBandhu for drivers</p>
-              <h1 className="mt-4 text-3xl font-black tracking-tight text-park-navy sm:text-4xl">Parking made easier.</h1>
-              <p className="mt-4 max-w-lg leading-7 text-slate-600">Sign in with a driver account to find nearby spaces, compare hourly prices, and manage your reservations.</p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                {!user && <Link to="/register" className="rounded-full bg-park-blue px-5 py-3 text-sm font-bold text-white transition hover:bg-sky-500">Create driver account</Link>}
-                <Link to="/login" className="rounded-full border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 transition hover:border-sky-300 hover:text-sky-700">Sign in</Link>
+      <main className="min-h-[calc(100vh-5rem)] bg-gradient-to-br from-white via-blue-50 to-white px-4 py-12 sm:px-6 lg:py-16">
+        <div className="mx-auto max-w-6xl space-y-7">
+          <section className="relative isolate overflow-hidden rounded-[2rem] border border-blue-100 bg-gradient-to-br from-white via-sky-50 to-cyan-50 p-6 shadow-sm sm:p-10">
+            <div aria-hidden="true" className="absolute -right-12 -top-20 -z-10 h-64 w-64 rounded-full bg-sky-200/40 blur-3xl" />
+            <div className="grid items-center gap-8 lg:grid-cols-[1.1fr_.9fr] lg:gap-12">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-white/90 px-3 py-1.5 text-xs font-extrabold uppercase tracking-[.16em] text-sky-700 shadow-sm">
+                  <Compass size={15} /> ParkBandhu for drivers
+                </div>
+                <h1 className="mt-5 max-w-2xl text-4xl font-black leading-tight tracking-tight text-park-navy sm:text-5xl">
+                  Parking, without the search.
+                </h1>
+                <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
+                  Find verified parking near your destination, compare hourly rates, and keep every reservation easy to reach.
+                </p>
+                {user && (
+                  <p className="mt-4 inline-flex items-start gap-2 rounded-2xl border border-blue-100 bg-white/80 px-4 py-3 text-sm leading-5 text-slate-600">
+                    <ShieldCheck size={17} className="mt-0.5 shrink-0 text-sky-600" />
+                    You’re signed in as a {user.role}. Use a driver account to manage parking and reservations.
+                  </p>
+                )}
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Link to="/register?role=driver" className="inline-flex items-center gap-2 rounded-full bg-park-blue px-6 py-3 text-sm font-bold text-white shadow-md shadow-sky-100 transition hover:bg-sky-500">
+                    Register as a driver <ArrowRight size={16} />
+                  </Link>
+                  <Link to="/login?role=driver" className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white px-6 py-3 text-sm font-bold text-sky-700 transition hover:bg-sky-50">
+                    Sign in as a driver
+                  </Link>
+                </div>
               </div>
+
+              <aside className="rounded-[1.75rem] border border-white bg-white/90 p-5 shadow-lg shadow-blue-100/50 backdrop-blur-sm sm:p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-extrabold uppercase tracking-[.18em] text-sky-600">Your driver toolkit</p>
+                    <h2 className="mt-1 text-xl font-black text-park-navy">A smoother parking trip</h2>
+                  </div>
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-700"><ParkingCircle size={21} /></span>
+                </div>
+                <div className="mt-5 space-y-3">
+                  <div className="flex items-center gap-3 rounded-2xl border border-blue-50 bg-sky-50/60 p-3.5">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-sky-700 shadow-sm"><MapPin size={19} /></span>
+                    <div><p className="text-sm font-bold text-park-navy">Find nearby spaces</p><p className="text-xs text-slate-500">Search around an address or landmark.</p></div>
+                  </div>
+                  <div className="flex items-center gap-3 rounded-2xl border border-blue-50 bg-sky-50/60 p-3.5">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-sky-700 shadow-sm"><ShieldCheck size={19} /></span>
+                    <div><p className="text-sm font-bold text-park-navy">Book verified parking</p><p className="text-xs text-slate-500">Compare rates and available times.</p></div>
+                  </div>
+                  <div className="flex items-center gap-3 rounded-2xl border border-blue-50 bg-sky-50/60 p-3.5">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-sky-700 shadow-sm"><CalendarDays size={19} /></span>
+                    <div><p className="text-sm font-bold text-park-navy">Keep trips organized</p><p className="text-xs text-slate-500">Review upcoming and active bookings.</p></div>
+                  </div>
+                </div>
+              </aside>
             </div>
-            <div className="flex min-h-64 items-center justify-center bg-gradient-to-br from-sky-100 via-cyan-50 to-emerald-50 p-8">
-              <div className="max-w-xs rounded-3xl border border-white bg-white/90 p-6 shadow-sm">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-sky-700"><ParkingCircle size={25} /></div>
-                <h2 className="mt-5 text-xl font-extrabold text-park-navy">Find a spot. Park with ease.</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">Explore verified parking listings and see their locations on the map.</p>
-              </div>
-            </div>
-          </div>
-        </section>
+          </section>
+
+          <section aria-label="How driver parking works" className="grid gap-4 md:grid-cols-3">
+            {[
+              { title: 'Choose your destination', body: 'Search by city, area, or use your current location.', icon: MapPin },
+              { title: 'Pick a suitable space', body: 'Review verified listings, prices, and available times.', icon: ParkingCircle },
+              { title: 'Book and get going', body: 'Confirm your reservation and find it in your account.', icon: CheckCircle2 },
+            ].map(({ title, body, icon: Icon }, index) => (
+              <article key={title} className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm sm:p-6">
+                <div className="flex items-center justify-between">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-sky-700"><Icon size={20} /></span>
+                  <span className="text-sm font-extrabold text-sky-300">0{index + 1}</span>
+                </div>
+                <h3 className="mt-4 font-extrabold text-park-navy">{title}</h3>
+                <p className="mt-1.5 text-sm leading-6 text-slate-500">{body}</p>
+              </article>
+            ))}
+          </section>
+        </div>
       </main>
     );
   }
@@ -246,38 +299,37 @@ const DriverDashboard = () => {
   const greetingName = user?.name?.trim().split(/\s+/)[0] || 'Driver';
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-16">
-      <div className="mx-auto max-w-[1400px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
-        <section className="relative overflow-hidden rounded-[2rem] bg-gradient-to-r from-sky-500 via-sky-400 to-cyan-300 px-6 py-8 text-white shadow-[0_18px_50px_rgba(14,165,233,.18)] sm:px-9 sm:py-10">
-          <div className="absolute -right-10 -top-24 h-72 w-72 rounded-full border-[36px] border-white/10" aria-hidden="true" />
-          <div className="absolute -bottom-32 right-48 h-64 w-64 rounded-full bg-white/10" aria-hidden="true" />
+    <main className="min-h-[calc(100vh-5rem)] bg-gradient-to-br from-white via-blue-50 to-white px-4 py-8 pb-16 sm:px-6 lg:py-12">
+      <div className="mx-auto max-w-6xl space-y-8">
+        <section className="relative isolate overflow-hidden rounded-[2rem] border border-blue-100 bg-gradient-to-br from-white via-sky-50 to-cyan-50 p-6 shadow-sm sm:p-8">
+          <div className="absolute -right-10 -top-16 -z-10 h-52 w-52 rounded-full bg-sky-200/40 blur-3xl" aria-hidden="true" />
           <div className="relative flex flex-col gap-7 md:flex-row md:items-end md:justify-between">
             <div className="max-w-2xl">
-              <p className="flex items-center gap-2 text-sm font-bold text-white/90"><Compass size={17} /> DRIVER DASHBOARD</p>
-              <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Good to see you, {greetingName}.</h1>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-white/90 sm:text-base">Find a verified parking spot near your destination and keep your upcoming reservations close at hand.</p>
+              <p className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[.2em] text-sky-700"><Compass size={16} /> Driver dashboard</p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight text-park-navy sm:text-4xl">Good to see you, {greetingName}.</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">Find a verified parking spot near your destination and keep your upcoming reservations close at hand.</p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <button type="button" onClick={handleUseMyLocation} disabled={locating} className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-bold text-sky-700 shadow-sm transition hover:bg-sky-50 disabled:cursor-wait disabled:opacity-70">
+              <button type="button" onClick={handleUseMyLocation} disabled={locating} className="inline-flex items-center justify-center gap-2 rounded-full bg-park-blue px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-sky-500 disabled:cursor-wait disabled:opacity-70">
                 <LocateFixed size={17} className={locating ? 'animate-pulse' : ''} />{locating ? 'Finding you…' : 'Use my location'}
               </button>
-              <Link to="/driver/profile" className="inline-flex items-center justify-center gap-2 rounded-full border border-white/40 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/20">
+              <Link to="/driver/profile" className="inline-flex items-center justify-center gap-2 rounded-full border border-blue-100 bg-white px-5 py-3 text-sm font-bold text-sky-700 transition hover:bg-sky-50">
                 <UserRound size={17} /> My account
               </Link>
             </div>
           </div>
         </section>
 
-        <section aria-label="Parking overview" className="-mt-4 relative grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section aria-label="Parking overview" className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between"><p className="text-sm font-semibold text-slate-500">Nearby spaces</p><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-700"><MapPin size={18} /></span></div>
             <p className="mt-3 text-2xl font-black text-park-navy">{loading ? '…' : spaces.length}</p><p className="mt-1 text-xs text-slate-500">Available for your current search</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between"><p className="text-sm font-semibold text-slate-500">Active parking</p><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><CheckCircle2 size={18} /></span></div>
             <p className="mt-3 text-2xl font-black text-park-navy">{bookingsLoading ? '…' : activeBookings.length}</p><p className="mt-1 text-xs text-slate-500">Reservations happening now</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between"><p className="text-sm font-semibold text-slate-500">Upcoming trips</p><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700"><CalendarDays size={18} /></span></div>
             <p className="mt-3 text-2xl font-black text-park-navy">{bookingsLoading ? '…' : upcomingBookings.length}</p><p className="mt-1 text-xs text-slate-500">Future parking reservations</p>
           </div>
@@ -290,7 +342,7 @@ const DriverDashboard = () => {
           </div>
         )}
 
-        <section id="search" className="mt-7 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+        <section id="search" className="rounded-[2rem] border border-blue-100 bg-white p-5 shadow-sm sm:p-7">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-[.18em] text-sky-700">Plan your parking</p>
@@ -341,7 +393,7 @@ const DriverDashboard = () => {
               <input type="datetime-local" value={filters.endTime} onChange={(event) => setFilters((current) => ({ ...current, endTime: event.target.value }))} className={fieldClassName} />
             </label>
           </div>
-          <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
+          <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-blue-50 pt-5">
             <button type="button" onClick={() => fetchSpaces()} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-full bg-park-blue px-6 py-3 text-sm font-extrabold text-white shadow-sm transition hover:bg-sky-500 disabled:cursor-wait disabled:opacity-60">
               {loading ? <RefreshCw size={17} className="animate-spin" /> : <Search size={17} />}{loading ? 'Searching…' : 'Search parking'}
             </button>
@@ -352,8 +404,8 @@ const DriverDashboard = () => {
           </div>
         </section>
 
-        <section id="parking-map" className="mt-8 grid items-start gap-5 xl:grid-cols-[1.15fr_.85fr]">
-          <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+        <section id="parking-map" className="grid items-start gap-5 xl:grid-cols-[1.15fr_.85fr]">
+          <div className="overflow-hidden rounded-[2rem] border border-blue-100 bg-white p-3 shadow-sm sm:p-4">
             <div className="flex items-center justify-between gap-3 px-2 pb-3 pt-1 sm:px-3">
               <div><h2 className="text-lg font-extrabold text-park-navy">Parking map</h2><p className="mt-0.5 text-xs text-slate-500">Select a pin to see its hourly rate</p></div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-700"><MapPin size={13} />{spaces.length} {spaces.length === 1 ? 'space' : 'spaces'}</span>
@@ -361,25 +413,25 @@ const DriverDashboard = () => {
             <MapView spaces={spaces} center={[Number(filters.lat) || 28.6139, Number(filters.lng) || 77.209]} height="min(62vh, 560px)" />
           </div>
 
-          <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="rounded-[2rem] border border-blue-100 bg-white p-5 shadow-sm sm:p-6">
             <div className="flex items-start justify-between gap-3">
               <div><p className="text-xs font-bold uppercase tracking-[.16em] text-sky-700">Verified host listings</p><h2 className="mt-1 text-xl font-black text-park-navy">Nearby spaces</h2></div>
-              <button type="button" aria-label="Refresh parking results" onClick={() => fetchSpaces()} disabled={loading} className="rounded-xl border border-slate-200 p-2.5 text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 disabled:opacity-50"><RefreshCw size={17} className={loading ? 'animate-spin' : ''} /></button>
+              <button type="button" aria-label="Refresh parking results" onClick={() => fetchSpaces()} disabled={loading} className="rounded-xl border border-blue-100 p-2.5 text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 disabled:opacity-50"><RefreshCw size={17} className={loading ? 'animate-spin' : ''} /></button>
             </div>
 
             <div className="mt-4 max-h-[min(62vh,560px)] space-y-3 overflow-y-auto pr-1">
               {loading && spaces.length === 0 ? (
                 <div className="flex min-h-52 flex-col items-center justify-center rounded-2xl bg-slate-50 text-center"><RefreshCw className="animate-spin text-sky-600" size={23} /><p className="mt-3 text-sm font-semibold text-slate-600">Finding available spaces…</p></div>
               ) : spaces.length === 0 ? (
-                <div className="flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 text-center">
+                <div className="flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-blue-200 bg-gradient-to-br from-sky-50/80 to-white px-5 text-center">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-sky-700 shadow-sm"><ParkingCircle size={24} /></div>
                   <h3 className="mt-4 font-bold text-park-navy">No spaces found here yet</h3>
                   <p className="mt-1 max-w-xs text-sm leading-6 text-slate-500">Try another area or search without times to see more listings.</p>
                   <button type="button" onClick={handleUseMyLocation} className="mt-3 text-sm font-bold text-sky-700 hover:text-sky-800">Search near me</button>
                 </div>
               ) : spaces.map((space) => (
-                <article key={space._id} className="overflow-hidden rounded-2xl border border-slate-200 transition hover:border-sky-200 hover:shadow-sm">
-                  {space.photos?.[0] && <img src={space.photos[0]} alt="Parking space" loading="lazy" className="h-32 w-full object-cover" />}
+                <article key={space._id} className="overflow-hidden rounded-2xl border border-blue-100 transition hover:border-sky-200 hover:shadow-sm">
+                  {space.photos?.[0] && <img src={getApiAssetUrl(space.photos[0])} alt="Parking space" loading="lazy" className="h-32 w-full object-cover" />}
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0"><h3 className="line-clamp-2 font-bold leading-5 text-park-navy">{space.address || 'Parking space'}</h3><p className="mt-1.5 flex items-center gap-1 text-xs text-slate-500"><MapPin size={13} className="shrink-0 text-sky-600" />Verified host listing</p></div>
@@ -388,7 +440,7 @@ const DriverDashboard = () => {
                     {space.availability?.[0] && <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500"><Clock3 size={14} className="text-sky-600" />{space.availability[0].day}, {space.availability[0].startTime}–{space.availability[0].endTime}{space.availability.length > 1 ? ` · +${space.availability.length - 1} times` : ''}</p>}
                     <div className="mt-4 flex gap-2">
                       <button type="button" onClick={() => setSelectedSpace(space)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-park-blue px-4 py-2.5 text-sm font-bold text-white transition hover:bg-sky-500">Book this spot <ArrowRight size={15} /></button>
-                      <a href={getDirectionsUrl(space)} target="_blank" rel="noreferrer" aria-label="Open directions in Google Maps" className="inline-flex items-center justify-center rounded-full border border-slate-200 px-3 text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700"><Navigation size={16} /></a>
+                      <a href={getDirectionsUrl(space)} target="_blank" rel="noreferrer" aria-label="Open directions in Google Maps" className="inline-flex items-center justify-center rounded-full border border-blue-100 px-3 text-slate-600 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700"><Navigation size={16} /></a>
                     </div>
                   </div>
                 </article>
@@ -397,7 +449,7 @@ const DriverDashboard = () => {
           </div>
         </section>
 
-        <section id="your-parking" className="mt-8 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+        <section id="your-parking" className="rounded-[2rem] border border-blue-100 bg-white p-5 shadow-sm sm:p-7">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div><p className="text-xs font-bold uppercase tracking-[.16em] text-sky-700">Your reservations</p><h2 className="mt-1 text-2xl font-black tracking-tight text-park-navy">Your parking</h2><p className="mt-1 text-sm text-slate-500">Keep track of current and upcoming parking.</p></div>
             <Link to="/driver/profile" className="inline-flex items-center gap-1.5 self-start text-sm font-bold text-sky-700 transition hover:text-sky-800 sm:self-auto">View booking history <ArrowUpRight size={16} /></Link>
@@ -407,7 +459,7 @@ const DriverDashboard = () => {
           {bookingsLoading && bookings.length === 0 ? (
             <div className="mt-5 flex items-center gap-2 rounded-2xl bg-slate-50 p-5 text-sm text-slate-500"><RefreshCw size={16} className="animate-spin" />Loading your bookings…</div>
           ) : activeBookings.length === 0 && upcomingBookings.length === 0 ? (
-            <div className="mt-5 flex flex-col items-start gap-3 rounded-2xl bg-slate-50 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="mt-5 flex flex-col items-start gap-3 rounded-2xl border border-dashed border-blue-200 bg-gradient-to-br from-sky-50/80 to-white p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
               <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-sky-700 shadow-sm"><CalendarDays size={19} /></span><div><h3 className="font-bold text-park-navy">No upcoming parking</h3><p className="mt-1 text-sm text-slate-500">When you book a space, its time and location will appear here.</p></div></div>
               <a href="#search" className="text-sm font-bold text-sky-700 hover:text-sky-800">Find a parking spot <ArrowRight size={14} className="ml-1 inline" /></a>
             </div>
@@ -417,7 +469,7 @@ const DriverDashboard = () => {
                 const isActive = activeBookings.some((item) => item._id === booking._id);
                 const space = booking.spaceId;
                 return (
-                  <article key={booking._id} className="rounded-2xl border border-slate-200 p-4 sm:p-5">
+                  <article key={booking._id} className="rounded-2xl border border-blue-100 p-4 sm:p-5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'}`}><span className={`h-1.5 w-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-sky-500'}`} />{isActive ? 'Active now' : 'Upcoming'}</span>
                       <span className="text-xs font-semibold text-slate-500">{booking.paymentStatus || 'Booking'}</span>

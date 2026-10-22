@@ -88,14 +88,14 @@ const ParkingSpaceVerificationPanel = () => {
 
   return (
     <section className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+      <div className="flex flex-col items-stretch justify-between gap-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5 lg:flex-row lg:items-end">
         <div>
           <h2 className="text-xl font-black text-park-navy">Parking Space Verification</h2>
           <p className="mt-1 text-sm text-slate-500">Review host evidence and approve listings separately from host KYC.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <input aria-label="Search parking listings" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { setPage(1); setSearch(searchInput); } }} placeholder="Search title, address, or host" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-          <select aria-label="Filter listing status" value={status} onChange={(event) => { setPage(1); setStatus(event.target.value); }} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap">
+          <input aria-label="Search parking listings" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { setPage(1); setSearch(searchInput); } }} placeholder="Search title, address, or host" className="w-full min-w-0 rounded-xl border border-slate-200 px-3 py-3 text-sm sm:col-span-2 lg:w-56" />
+          <select aria-label="Filter listing status" value={status} onChange={(event) => { setPage(1); setStatus(event.target.value); }} className="w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm lg:w-44">
             <option value="pending">Pending review</option>
             <option value="under_review">Under review</option>
             <option value="action_required">Changes requested</option>
@@ -103,9 +103,9 @@ const ParkingSpaceVerificationPanel = () => {
             <option value="approved">Approved</option>
             <option value="all">All statuses</option>
           </select>
-          <label className="text-xs text-slate-500">Submitted from<input aria-label="Submitted from" type="date" value={submittedFrom} onChange={(event) => { setPage(1); setSubmittedFrom(event.target.value); }} className="mt-1 block rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700" /></label>
-          <label className="text-xs text-slate-500">Submitted to<input aria-label="Submitted to" type="date" value={submittedTo} onChange={(event) => { setPage(1); setSubmittedTo(event.target.value); }} className="mt-1 block rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700" /></label>
-          <button type="button" onClick={() => { if (searchInput === search) loadSpaces(); else { setPage(1); setSearch(searchInput); } }} className="rounded-full bg-park-blue px-4 py-2 text-sm font-semibold text-white">Refresh</button>
+          <label className="min-w-0 text-xs text-slate-500">Submitted from<input aria-label="Submitted from" type="date" value={submittedFrom} onChange={(event) => { setPage(1); setSubmittedFrom(event.target.value); }} className="mt-1 block w-full min-w-0 rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-700" /></label>
+          <label className="min-w-0 text-xs text-slate-500">Submitted to<input aria-label="Submitted to" type="date" value={submittedTo} onChange={(event) => { setPage(1); setSubmittedTo(event.target.value); }} className="mt-1 block w-full min-w-0 rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-700" /></label>
+          <button type="button" onClick={() => { if (searchInput === search) loadSpaces(); else { setPage(1); setSearch(searchInput); } }} className="min-h-11 rounded-full bg-park-blue px-4 py-2 text-sm font-semibold text-white sm:col-span-2 lg:col-span-1">Refresh</button>
         </div>
       </div>
 
@@ -115,19 +115,19 @@ const ParkingSpaceVerificationPanel = () => {
         <div className="space-y-3">
         {loading ? <p className="rounded-2xl bg-white p-8 text-center text-slate-500">Loading listings…</p> : spaces.length === 0 ? <p className="rounded-2xl bg-white p-8 text-center text-slate-500">No listings match this filter.</p> : spaces.map((space) => (
             <button type="button" key={space._id} onClick={() => { setSelectedSpace(space); setDecision('approved'); setReason(''); setVerificationChecks(space.verificationChecks || { propertyAuthorization: 'pending', location: 'pending', physicalSpace: 'pending' }); }} className={`w-full rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:border-sky-300 ${selectedSpace?._id === space._id ? 'border-sky-400 ring-2 ring-sky-100' : 'border-slate-100'}`}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-bold text-park-navy">{space.title || 'Untitled parking space'}</p>
-                  <p className="mt-1 text-sm text-slate-500">{space.address}</p>
-                  <p className="mt-2 text-xs text-slate-500">Host: {space.host?.name || 'Unknown'} · {space.host?.email || ''}</p>
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0 break-words">
+                  <p className="break-words font-bold text-park-navy">{space.title || 'Untitled parking space'}</p>
+                  <p className="mt-1 break-words text-sm text-slate-500">{space.address}</p>
+                  <p className="mt-2 break-all text-xs text-slate-500">Host: {space.host?.name || 'Unknown'} · {space.host?.email || ''}</p>
                 </div>
                 <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold capitalize text-amber-800">{statusLabel(space.verification?.status)}</span>
               </div>
               <p className="mt-3 text-xs text-slate-500">Submitted {space.submittedAt ? new Date(space.submittedAt).toLocaleString() : 'not yet submitted'} · {space.evidenceFiles?.length || 0} evidence files</p>
             </button>
           ))}
-          {!loading && total > 0 && <div className="flex items-center justify-between rounded-2xl bg-white p-3 text-sm text-slate-600">
-            <span>{total} listing{total === 1 ? '' : 's'} · Page {page} of {pages}</span>
+          {!loading && total > 0 && <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white p-3 text-sm text-slate-600">
+            <span className="min-w-0">{total} listing{total === 1 ? '' : 's'} · Page {page} of {pages}</span>
             <div className="flex gap-2"><button type="button" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Previous</button><button type="button" disabled={page >= pages} onClick={() => setPage((current) => Math.min(pages, current + 1))} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Next</button></div>
           </div>}
         </div>
@@ -138,7 +138,7 @@ const ParkingSpaceVerificationPanel = () => {
               <div><h3 className="text-xl font-black text-park-navy">{selectedSpace.title || 'Untitled parking space'}</h3><p className="mt-1 text-sm text-slate-500">{selectedSpace.propertyType?.replaceAll('_', ' ')} · {selectedSpace.address}</p></div>
               <button type="button" onClick={() => setSelectedSpace(null)} className="rounded-full px-3 py-1 text-sm text-slate-500 hover:bg-slate-100">Close</button>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4 text-sm">
+            <div className="mt-4 grid grid-cols-1 gap-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-2">
               <p><span className="font-semibold">Host:</span> {selectedSpace.host?.name || 'Unknown'}</p>
               <p><span className="font-semibold">Host KYC:</span> <span className="capitalize">{selectedSpace.host?.kycStatus || 'unknown'}</span></p>
               <p><span className="font-semibold">Latitude:</span> {selectedSpace.location?.coordinates?.[1]}</p>

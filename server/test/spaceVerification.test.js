@@ -1,4 +1,4 @@
-process.env.JWT_SECRET = 'space-verification-test-secret';
+process.env.JWT_SECRET = 'space-verification-test-secret-with-32-byte-minimum';
 process.env.PRIVATE_UPLOADS_DIR = require('path').join(require('os').tmpdir(), `parkbandhu-tests-${process.pid}`);
 
 const { test, after } = require('node:test');

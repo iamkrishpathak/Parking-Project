@@ -38,7 +38,7 @@ const Home = () => {
       />
 
       {/* Video Section */}
-      <section className="bg-white px-4 py-8">
+      <section className="bg-white px-4 py-5 sm:py-8">
         <div className="max-w-6xl mx-auto w-full overflow-hidden rounded-2xl">
           <video 
             width="100%" 
@@ -47,7 +47,7 @@ const Home = () => {
             muted 
             loop
             className="rounded-2xl shadow-2xl border border-park-blue/30 w-full h-auto"
-            style={{ maxHeight: '600px', objectFit: 'cover', display: 'block', transform: 'scale(1.15)', transformOrigin: 'center top' }}
+            style={{ maxHeight: '600px', objectFit: 'cover', display: 'block' }}
           >
             <source src="/Media/parking-demo.mp4" type="video/mp4" />
             Your browser does not support the video tag.
@@ -57,16 +57,16 @@ const Home = () => {
 
       {/* Hero with Search */}
       <section className="bg-gradient-to-br from-white via-blue-50 to-white relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 md:py-12">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 md:py-12">
+          <div className="grid items-center gap-8 md:gap-12 lg:grid-cols-2">
             {/* Left Side - Content */}
-            <div className="space-y-8 text-center lg:text-left">
+            <div className="space-y-6 text-center sm:space-y-8 lg:text-left">
               <div className="space-y-4">
-                <p className="text-sm font-semibold tracking-wider text-park-blue uppercase text-left">
+                <p className="text-sm font-semibold tracking-wider text-park-blue uppercase">
                   Bharat Ka Apna Parking App
                 </p>
                 <h1
-                  className="text-5xl md:text-6xl lg:text-7xl font-black text-park-navy text-left leading-tight"
+                  className="text-4xl font-black leading-tight text-park-navy sm:text-5xl md:text-6xl lg:text-7xl"
                   style={{
                     letterSpacing: '0.01em',
                     fontFamily: 'Inter, Segoe UI, Arial, sans-serif',
@@ -74,8 +74,8 @@ const Home = () => {
                 >
                   The Smarter way to find Parking in India.
                 </h1>
-                <div className="mt-2 text-left">
-                  <p className="text-xl text-slate-600 max-w-2xl">
+                <div className="mt-2">
+                  <p className="max-w-2xl text-lg text-slate-600 sm:text-xl">
                     Thousands of reservable spaces located right where you need them. Join drivers and enjoy stress-free, affordable parking.
                   </p>
                 </div>
@@ -113,16 +113,16 @@ const Home = () => {
 
             {/* Right Side - Search Section */}
             <div className="w-full">
-              <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 md:p-8">
-                <h2 className="text-2xl font-black text-park-navy mb-6">Find parking near you</h2>
+              <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-2xl sm:p-6 md:p-8">
+                <h2 className="mb-5 text-xl font-black text-park-navy sm:mb-6 sm:text-2xl">Find parking near you</h2>
                 <form onSubmit={handleSearch} className="space-y-4">
                   <div>
                     <label className="block text-sm font-semibold text-slate-600 mb-2">Park at</label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid gap-2 sm:grid-cols-3">
                       <select
                         value={searchForm.state}
                         onChange={(e) => setSearchForm({ ...searchForm, state: e.target.value, city: '', place: '' })}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white"
+                        className="w-full min-w-0 border border-slate-200 rounded-xl px-3 py-3 text-sm bg-white"
                       >
                         <option value="">State</option>
                         {getStates().map((state) => (
@@ -132,7 +132,7 @@ const Home = () => {
                       <select
                         value={searchForm.city}
                         onChange={(e) => setSearchForm({ ...searchForm, city: e.target.value, place: '' })}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white"
+                        className="w-full min-w-0 border border-slate-200 rounded-xl px-3 py-3 text-sm bg-white"
                         disabled={!searchForm.state || getCities(searchForm.state).length === 0}
                       >
                         <option value="">City</option>
@@ -143,7 +143,7 @@ const Home = () => {
                       <select
                         value={searchForm.place}
                         onChange={(e) => setSearchForm({ ...searchForm, place: e.target.value })}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white"
+                        className="w-full min-w-0 border border-slate-200 rounded-xl px-3 py-3 text-sm bg-white"
                         disabled={!searchForm.city}
                       >
                         <option value="">Place</option>
@@ -153,7 +153,7 @@ const Home = () => {
                       </select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-2">
                     <div>
                       <label className="block text-sm font-semibold text-slate-600 mb-2">From</label>
                       <input
@@ -161,7 +161,7 @@ const Home = () => {
                         value={searchForm.startTime}
                         onChange={(e) => setSearchForm({ ...searchForm, startTime: e.target.value })}
                         min={getCurrentDateTime()}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2"
+                        className="w-full min-w-0 border border-slate-200 rounded-xl px-3 py-3"
                         required
                       />
                     </div>
@@ -172,7 +172,7 @@ const Home = () => {
                         value={searchForm.endTime}
                         onChange={(e) => setSearchForm({ ...searchForm, endTime: e.target.value })}
                         min={searchForm.startTime || getCurrentDateTime()}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2"
+                        className="w-full min-w-0 border border-slate-200 rounded-xl px-3 py-3"
                         required
                       />
                     </div>

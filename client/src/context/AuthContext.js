@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { io } from 'socket.io-client';
 import { API_BASE_URL } from '../api/client';
 
@@ -14,6 +14,10 @@ export const AuthProvider = ({ children }) => {
   });
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY));
   const [socket, setSocket] = useState(null);
+
+  const markEmailVerified = useCallback(() => {
+    setUser((currentUser) => currentUser ? { ...currentUser, emailVerified: true } : currentUser);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -33,12 +37,9 @@ export const AuthProvider = ({ children }) => {
 
   // create socket connection when user logs in
   useEffect(() => {
-    if (user) {
+    if (user && token) {
       try {
-        const s = io(API_BASE_URL);
-        s.on('connect', () => {
-          s.emit('join', user._id);
-        });
+        const s = io(API_BASE_URL, { auth: { token } });
         setSocket(s);
         return () => {
           s.disconnect();
@@ -49,7 +50,7 @@ export const AuthProvider = ({ children }) => {
       }
     }
     return () => {};
-  }, [user]);
+  }, [user, token]);
 
   const login = ({ token: newToken, user: newUser }) => {
     if (newToken) setToken(newToken);
@@ -76,9 +77,10 @@ export const AuthProvider = ({ children }) => {
       socket,
       login,
       updateUser,
+      markEmailVerified,
       logout,
     }),
-    [user, token, socket]
+    [user, token, socket, markEmailVerified]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

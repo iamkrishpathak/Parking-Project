@@ -1,10 +1,29 @@
+# Dependencies
 node_modules/
+
+# Local environment files and secrets. Keep checked-in templates visible.
 .env
+.env.*
+!.env.example
+!.env.*.example
+
+# Local runtimes and build artifacts
 venv/
 .venv/
 __pycache__/
 dist/
 build/
+.pnp
+.pnp.js
+coverage/
+
+# Logs and OS files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 .DS_Store
+
+# Private uploads must never be committed or served as static assets.
 server/private-uploads/
 server/uploads/

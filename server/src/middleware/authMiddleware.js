@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const getJwtSecret = require('../utils/jwtSecret');
 
 const authMiddleware = (roles = []) => {
   const allowedRoles = Array.isArray(roles) ? roles : [roles];
@@ -16,12 +17,19 @@ const authMiddleware = (roles = []) => {
         return res.status(401).json({ message: 'Authorization token missing' });
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, getJwtSecret());
       const user = await User.findById(decoded.id);
 
       if (!user) {
         console.log('Auth failed: user not found for id:', decoded.id);
         return res.status(401).json({ message: 'User not found' });
+      }
+
+      // Existing accounts created through Google already had a verified
+      // Google ID token. Persist that proof into the new emailVerified field.
+      if (user.authProvider === 'google' && user.emailVerified !== true) {
+        user.emailVerified = true;
+        await user.save();
       }
 
       if (allowedRoles.length && !allowedRoles.includes(user.role)) {

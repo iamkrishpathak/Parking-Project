@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      maxlength: 120,
     },
     email: {
       type: String,
@@ -14,6 +15,7 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
+      maxlength: 254,
     },
     password: {
       type: String,
@@ -57,6 +59,13 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationToken: { type: String, select: false, index: true },
+    emailVerificationExpires: { type: Date, select: false },
+    emailVerificationRequestedAt: { type: Date, select: false },
     kycStatus: {
       type: String,
       enum: ['pending', 'approved', 'rejected'],

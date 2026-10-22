@@ -7,6 +7,28 @@ body {
     sans-serif;
   background-color: #f8fafc;
   color: #0f172a;
+  min-width: 320px;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+@media (max-width: 639px) {
+  /* Prevent iOS Safari from zooming the page when a form field receives focus. */
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 @media print {

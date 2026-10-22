@@ -3,6 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import GoogleSignInButton from '../components/GoogleSignInButton';
+import PasswordRequirements from '../components/PasswordRequirements';
+import { isPasswordValid } from '../utils/passwordPolicy';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -25,11 +27,15 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!isPasswordValid(form.password)) {
+      setError('Please meet all password requirements before creating your account.');
+      return;
+    }
     setLoading(true);
     try {
       const { data } = await api.post('/api/auth/register', form);
       login(data);
-      navigate(form.role === 'host' ? '/host' : '/driver');
+      navigate(`/verify-email?sent=${data.verificationEmailSent === false ? '0' : '1'}`);
     } catch (err) {
       const message =
         err?.response?.data?.message || err?.message || 'Unable to register';
@@ -58,9 +64,9 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-gradient-to-br from-white via-park-sky to-emerald-50 flex items-center">
-      <div className="max-w-5xl mx-auto w-full grid md:grid-cols-2 gap-8 px-4 sm:px-6 py-12">
-        <div className="bg-white rounded-3xl p-8 shadow-xl border border-slate-100">
+    <div className="flex min-h-[calc(100svh-4.5rem)] items-start bg-gradient-to-br from-white via-blue-50 to-white py-6 sm:items-center sm:py-10">
+      <div className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-4 sm:gap-8 sm:px-6 sm:py-8 md:grid-cols-2">
+        <div className="rounded-[1.5rem] border border-blue-100 bg-white p-5 shadow-xl shadow-blue-100/70 sm:rounded-[2rem] sm:p-8">
           <div className="mb-6">
             <h2 className="text-2xl font-black text-park-navy">Create your ParkBandhu account</h2>
           </div>
@@ -72,7 +78,7 @@ const Register = () => {
                 name="name"
                 value={form.name}
                 onChange={handleChange}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2"
+                className="w-full border border-blue-100 rounded-2xl px-4 py-3"
                 required
               />
             </div>
@@ -83,7 +89,7 @@ const Register = () => {
                 name="email"
                 value={form.email}
                 onChange={handleChange}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2"
+                className="w-full border border-blue-100 rounded-2xl px-4 py-3"
                 required
               />
             </div>
@@ -92,11 +98,16 @@ const Register = () => {
               <input
                 type="password"
                 name="password"
+                autoComplete="new-password"
                 value={form.password}
                 onChange={handleChange}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2"
+                className="w-full border border-blue-100 rounded-2xl px-4 py-3"
+                minLength={8}
+                maxLength={72}
+                aria-describedby="registration-password-requirements"
                 required
               />
+              <PasswordRequirements password={form.password} id="registration-password-requirements" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-600 mb-1">Role</label>
@@ -104,7 +115,7 @@ const Register = () => {
                 name="role"
                 value={form.role}
                 onChange={handleChange}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2 bg-white"
+                className="w-full border border-blue-100 rounded-2xl px-4 py-3 bg-white"
               >
                 <option value="driver">Driver</option>
                 <option value="host">Parking Owner</option>
@@ -117,8 +128,8 @@ const Register = () => {
             )}
             <button
               type="submit"
-              disabled={loading}
-              className="w-full rounded-full bg-park-blue text-white font-semibold py-3 hover:bg-indigo-600 disabled:opacity-70"
+              disabled={loading || !isPasswordValid(form.password)}
+              className="w-full rounded-full bg-park-blue text-white font-semibold py-3 hover:bg-sky-500 disabled:opacity-70"
             >
               {loading ? 'Creating...' : form.role === 'host' ? 'Create host account' : 'Create driver account'}
             </button>
@@ -137,7 +148,7 @@ const Register = () => {
           </p>
         </div>
         <div className="hidden md:flex flex-col justify-center space-y-4">
-          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-lg">
+          <div className="bg-white border border-blue-100 rounded-3xl p-6 shadow-lg">
             <p className="text-xs font-semibold text-park-blue">Trusted by most of the Parking Owners and Drivers!</p>
             <h3 className="text-2xl font-black text-park-navy mt-2">Earn from idle parking and Park your Vehicle hassle-free</h3>
             <p className="text-slate-500 mt-3">

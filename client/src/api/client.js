@@ -2,6 +2,12 @@ import axios from 'axios';
 
 export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
+export const getApiAssetUrl = (url) => {
+  if (!url || typeof url !== 'string') return '';
+  if (/^(https?:|data:|blob:)/i.test(url)) return url;
+  return `${API_BASE_URL.replace(/\/$/, '')}/${url.replace(/^\//, '')}`;
+};
+
 const api = axios.create({
   baseURL: API_BASE_URL,
 });

@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
+const { PASSWORD_POLICY_MESSAGE, validatePassword } = require('../utils/passwordPolicy');
 const { storePrivateFile, getPrivateFilePath } = require('../utils/privateFileStorage');
 const { 
   sendKYCSubmittedNotificationToAdmin,
@@ -11,17 +12,12 @@ const {
   sendKYCRejectedEmail,
   sendDocumentRequestEmail,
   sendPasswordResetEmail,
+  sendEmailVerification,
 } = require('../utils/emailService');
 
 const googleAuthClient = new OAuth2Client();
 
-const getJwtSecret = () => {
-  if (!process.env.JWT_SECRET) {
-    console.warn('⚠️  JWT_SECRET missing, falling back to insecure development secret');
-    return 'secret123';
-  }
-  return process.env.JWT_SECRET;
-};
+const getJwtSecret = require('../utils/jwtSecret');
 
 const signToken = (userId) => jwt.sign({ id: userId }, getJwtSecret(), { expiresIn: '7d' });
 
@@ -33,6 +29,9 @@ const sanitizeUser = (user) => {
     passwordResetToken,
     passwordResetExpires,
     passwordResetRequestedAt,
+    emailVerificationToken,
+    emailVerificationExpires,
+    emailVerificationRequestedAt,
     __v,
     ...rest
   } = user.toObject();
@@ -83,13 +82,23 @@ exports.streamKycDocument = async (req, res) => {
 
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, phone, role } = req.body;
+    const { name, email, password, phone, role } = req.body || {};
 
-    if (!name || !email || !password) {
+    if (typeof name !== 'string' || !name.trim() || typeof email !== 'string' || !email.trim() || !password) {
       return res.status(400).json({ message: 'Name, email, and password required' });
     }
+    const passwordError = validatePassword(password);
+    if (passwordError) return res.status(400).json({ message: passwordError });
 
-    const existing = await User.findOne({ email });
+    const normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return res.status(400).json({ message: 'Enter a valid email address' });
+    }
+    if (name.trim().length > 120) {
+      return res.status(400).json({ message: 'Name must be 120 characters or fewer' });
+    }
+
+    const existing = await User.findOne({ email: normalizedEmail });
     if (existing) {
       return res.status(400).json({ message: 'User already exists' });
     }
@@ -101,14 +110,27 @@ exports.register = async (req, res) => {
 
     const user = await User.create({
       name,
-      email,
+      email: normalizedEmail,
       password,
       phone,
       role: roleLower,
     });
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    user.emailVerificationToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
+    user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    user.emailVerificationRequestedAt = new Date();
+    await user.save();
+    const verificationUrl = `${(process.env.CLIENT_URL || 'http://localhost:3000').replace(/\/$/, '')}/verify-email?token=${verificationToken}`;
+    let verificationEmailSent = true;
+    try {
+      await sendEmailVerification(user.email, user.name, verificationUrl);
+    } catch (mailError) {
+      verificationEmailSent = false;
+      console.error('Could not send account verification email:', mailError.message);
+    }
     const token = signToken(user._id);
 
-    res.status(201).json({ token, user: sanitizeUser(user) });
+    res.status(201).json({ token, user: sanitizeUser(user), verificationEmailSent });
   } catch (error) {
     console.error('Register Error:', error);
 
@@ -125,32 +147,85 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: validationMsg });
     }
 
-    // For development, surface the actual error message to help debugging
-    return res
-      .status(500)
-      .json({ message: error?.message || 'Registration failed' });
+    return res.status(500).json({ message: 'Registration failed' });
+  }
+};
+
+exports.verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    if (typeof token !== 'string' || !/^[a-f0-9]{64}$/i.test(token)) {
+      return res.status(400).json({ message: 'A valid email verification token is required' });
+    }
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await User.findOne({
+      emailVerificationToken: tokenHash,
+      emailVerificationExpires: { $gt: new Date() },
+    }).select('+emailVerificationToken +emailVerificationExpires');
+    if (!user) {
+      return res.status(400).json({ message: 'This verification link is invalid or has expired. Request a new one.' });
+    }
+
+    user.emailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    user.emailVerificationRequestedAt = undefined;
+    await user.save();
+    return res.json({ message: 'Email verified. You can now book or manage parking listings.' });
+  } catch (error) {
+    console.error('Email verification error:', error.message);
+    return res.status(500).json({ message: 'Unable to verify email right now' });
+  }
+};
+
+exports.resendEmailVerification = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('+emailVerificationRequestedAt');
+    if (!user) return res.status(404).json({ message: 'Account not found' });
+    if (user.emailVerified) return res.json({ message: 'Your email is already verified' });
+
+    const cooldownMs = 60 * 1000;
+    if (user.emailVerificationRequestedAt && Date.now() - user.emailVerificationRequestedAt.getTime() < cooldownMs) {
+      return res.status(429).json({ message: 'Wait a minute before requesting another verification email' });
+    }
+
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    user.emailVerificationToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
+    user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    user.emailVerificationRequestedAt = new Date();
+    await user.save();
+
+    const verificationUrl = `${(process.env.CLIENT_URL || 'http://localhost:3000').replace(/\/$/, '')}/verify-email?token=${verificationToken}`;
+    await sendEmailVerification(user.email, user.name, verificationUrl);
+    return res.json({ message: 'Verification email sent. Check your inbox and spam folder.' });
+  } catch (error) {
+    console.error('Resend verification email error:', error.message);
+    return res.status(503).json({ message: 'Could not send the verification email. Check the mail configuration and try again later.' });
   }
 };
 
 exports.login = async (req, res) => {
   try {
-    const { email, password, role } = req.body;
-    console.log('Login attempt for email:', email);
+    const { email, password, role } = req.body || {};
+    console.log('Login attempt');
 
     if (!email || !password) {
       console.log('Login failed: missing email or password');
       return res.status(400).json({ message: 'Email and password required' });
     }
 
-    const user = await User.findOne({ email }).select('+password');
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    const user = await User.findOne({ email: normalizedEmail }).select('+password');
     if (!user) {
-      console.log('Login failed: user not found for email:', email);
+      console.log('Login failed: invalid credentials');
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    if (typeof user.emailVerified !== 'boolean') user.emailVerified = false;
+
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      console.log('Login failed: password mismatch for email:', email);
+      console.log('Login failed: invalid credentials');
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
@@ -163,7 +238,7 @@ exports.login = async (req, res) => {
     }
 
     const token = signToken(user._id);
-    console.log('Login successful for user:', user._id, 'email:', email);
+    console.log('Login successful for user:', user._id);
     res.json({ token, user: sanitizeUser(user) });
   } catch (error) {
     console.error('Login error', error.message);
@@ -229,6 +304,14 @@ exports.googleLogin = async (req, res) => {
       await user.save();
     }
 
+    // Google supplied a verified email claim above, so Google sign-ins do not
+    // need the local email-link flow.
+    user.emailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    user.emailVerificationRequestedAt = undefined;
+    await user.save();
+
     return res.json({ token: signToken(user._id), user: sanitizeUser(user) });
   } catch (error) {
     if (error?.code === 11000) {
@@ -285,10 +368,12 @@ exports.requestPasswordReset = async (req, res) => {
 
 exports.resetPassword = async (req, res) => {
   try {
-    const { token, password } = req.body;
-    if (typeof token !== 'string' || !token || typeof password !== 'string' || password.length < 8) {
-      return res.status(400).json({ message: 'A valid reset link and a password of at least 8 characters are required' });
+    const { token, password } = req.body || {};
+    if (typeof token !== 'string' || !token) {
+      return res.status(400).json({ message: 'A valid reset link is required' });
     }
+    const passwordError = validatePassword(password);
+    if (passwordError) return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
 
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     const user = await User.findOne({

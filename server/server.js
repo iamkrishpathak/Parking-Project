@@ -13,6 +13,9 @@ const authRoutes = require('./src/routes/authRoutes');
 const spaceRoutes = require('./src/routes/spaceRoutes');
 const bookingRoutes = require('./src/routes/bookingRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
+const jwt = require('jsonwebtoken');
+const User = require('./src/models/User');
+const getJwtSecret = require('./src/utils/jwtSecret');
 
 
 const app = express();
@@ -45,6 +48,15 @@ const corsOptions = {
 };
 
 app.set('trust proxy', 1);
+app.disable('x-powered-by');
+app.use((_req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+  });
+  next();
+});
 app.use(express.json());
 app.use(cors(corsOptions));
 
@@ -108,6 +120,9 @@ const createAdminUser = () => {
 };
 
 const startServer = async () => {
+  // Refuse to start with a known/default signing key: all sessions and sockets
+  // must be signed with a deployment-specific secret.
+  getJwtSecret();
   await connectDB(process.env.MONGODB_URI);
   console.log('Database connected');
 
@@ -124,17 +139,28 @@ const startServer = async () => {
     },
   });
 
+  io.use(async (socket, next) => {
+    try {
+      const token = socket.handshake.auth?.token;
+      if (typeof token !== 'string' || !token) return next(new Error('Authentication required'));
+      const decoded = jwt.verify(token, getJwtSecret());
+      const user = await User.findById(decoded.id).select('_id');
+      if (!user) return next(new Error('Authentication required'));
+      socket.data.userId = String(user._id);
+      return next();
+    } catch (_error) {
+      return next(new Error('Authentication required'));
+    }
+  });
+
   // store io instance for controllers
   socketUtil.setIO(io);
 
   io.on('connection', (socket) => {
     console.log('Socket connected:', socket.id);
-    socket.on('join', (userId) => {
-      if (userId) {
-        socket.join(userId);
-        console.log(`Socket ${socket.id} joined room ${userId}`);
-      }
-    });
+    // Only the authenticated account's room is joined; clients cannot choose
+    // another user's ID to subscribe to their private booking events.
+    socket.join(socket.data.userId);
     socket.on('disconnect', () => {
       console.log('Socket disconnected:', socket.id);
     });

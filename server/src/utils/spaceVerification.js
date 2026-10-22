@@ -35,7 +35,7 @@ const getEvidenceRequirements = (propertyType) => {
 const isHostKycApproved = (user) => user?.role === 'host' && user?.kycStatus === 'approved';
 
 const isListingPublic = (space) =>
-  space?.verificationStatus === 'approved' && space?.isPublished === true;
+  space?.verificationStatus === 'approved' && space?.isPublished === true && space?.isArchived !== true;
 
 const canHostEditListing = (space) =>
   ['draft', 'action_required', 'rejected', 'approved'].includes(space?.verificationStatus);
@@ -49,7 +49,7 @@ const reviewReasonError = (decision, reason) => {
   return null;
 };
 
-const publicListingFilter = () => ({ verificationStatus: 'approved', isPublished: true });
+const publicListingFilter = () => ({ verificationStatus: 'approved', isPublished: true, isArchived: { $ne: true } });
 
 module.exports = {
   LISTING_STATUSES,

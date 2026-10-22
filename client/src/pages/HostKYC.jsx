@@ -99,26 +99,26 @@ const HostKYC = () => {
     };
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center animate-in fade-in duration-300">
+      <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/55 p-3 backdrop-blur-sm sm:items-center sm:p-4">
+        <div className="my-auto w-full max-w-md rounded-[1.5rem] border border-blue-100 bg-white p-5 text-center shadow-2xl animate-in fade-in duration-300 sm:rounded-[2rem] sm:p-8">
           <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
             <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">Documents Uploaded!</h2>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <p className="text-blue-900 font-semibold mb-2">Status: Pending Admin Verification</p>
-            <p className="text-sm text-blue-700 mb-3">
+          <h2 className="mb-3 text-2xl font-black text-park-navy">Documents uploaded!</h2>
+          <div className="mb-6 rounded-2xl border border-blue-100 bg-sky-50/70 p-4">
+            <p className="mb-2 font-bold text-sky-900">Status: Pending admin verification</p>
+            <p className="mb-3 text-sm text-sky-700">
               Your KYC documents have been successfully uploaded and are pending approval from our admin.
             </p>
-            <div className="bg-white rounded p-3">
-              <p className="text-xs text-gray-600 mb-1">Expected Decision By:</p>
-              <p className="text-sm font-mono font-semibold text-gray-900">{approvalDeadline ? formatTime(approvalDeadline) : 'Within 24 hours'}</p>
+            <div className="rounded-xl border border-blue-100 bg-white p-3">
+              <p className="mb-1 text-xs font-semibold text-slate-500">Expected decision by</p>
+              <p className="font-mono text-sm font-bold text-park-navy">{approvalDeadline ? formatTime(approvalDeadline) : 'Within 24 hours'}</p>
             </div>
           </div>
           
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm text-amber-900">
               <span className="font-semibold">Note:</span> You'll receive an email notification once your documents are verified. The admin may request additional documents if needed.
             </p>
@@ -126,7 +126,7 @@ const HostKYC = () => {
 
           <button
             onClick={() => setShowSuccess(false)}
-            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-4 rounded-lg hover:shadow-lg transition duration-200 font-medium"
+            className="w-full rounded-full bg-park-blue px-4 py-3 font-bold text-white shadow-sm transition hover:bg-sky-500"
           >
             Back to Dashboard
           </button>
@@ -136,27 +136,28 @@ const HostKYC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <main className="min-h-[calc(100vh-5rem)] bg-gradient-to-br from-white via-blue-50 to-white px-4 py-10 sm:px-6 lg:py-14">
       <div className="max-w-2xl mx-auto">
-        <div className="bg-white shadow-lg rounded-lg p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2 text-center">KYC Verification</h1>
-          <p className="text-gray-600 text-center mb-8">
+        <div className="rounded-[2rem] border border-blue-100 bg-white p-6 shadow-xl shadow-blue-100/50 sm:p-8">
+          <p className="text-center text-xs font-extrabold uppercase tracking-[.2em] text-sky-600">Host account</p>
+          <h1 className="mb-2 mt-2 text-center text-3xl font-black tracking-tight text-park-navy">KYC verification</h1>
+          <p className="mb-8 text-center text-slate-600">
             Please upload the required documents to complete your verification
           </p>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-600 text-sm">{error}</p>
+            <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4">
+              <p className="text-sm text-rose-700">{error}</p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Identity Proof */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="mb-2 block text-sm font-bold text-slate-700">
                 Identity Proof (Aadhaar) *
               </label>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400 transition-colors">
+              <div className="mt-1 flex justify-center rounded-2xl border-2 border-dashed border-blue-200 bg-sky-50/40 px-4 pb-6 pt-5 transition-colors hover:border-sky-400 sm:px-6">
                 <div className="space-y-1 text-center">
                   {identityPreview ? (
                     <div className="relative">
@@ -168,7 +169,7 @@ const HostKYC = () => {
                       <button
                         type="button"
                         onClick={() => removeFile('identity')}
-                        className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        className="absolute right-0 top-0 rounded-full bg-rose-500 p-1 text-white transition hover:bg-rose-600"
                       >
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -179,7 +180,7 @@ const HostKYC = () => {
                   ) : (
                     <>
                       <svg
-                        className="mx-auto h-12 w-12 text-gray-400"
+                        className="mx-auto h-12 w-12 text-sky-500"
                         stroke="currentColor"
                         fill="none"
                         viewBox="0 0 48 48"
@@ -192,10 +193,10 @@ const HostKYC = () => {
                           strokeLinejoin="round"
                         />
                       </svg>
-                      <div className="flex text-sm text-gray-600">
+                      <div className="flex text-sm text-slate-600">
                         <label
                           htmlFor="identity-proof"
-                          className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
+                          className="relative cursor-pointer rounded-lg bg-white font-bold text-sky-700 hover:text-sky-800 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-sky-500"
                         >
                           <span>Upload a file</span>
                           <input
@@ -209,7 +210,7 @@ const HostKYC = () => {
                         </label>
                         <p className="pl-1">or drag and drop</p>
                       </div>
-                      <p className="text-xs text-gray-500">PNG, JPG, GIF, PDF up to 10MB</p>
+                      <p className="text-xs text-slate-500">PNG, JPG, GIF, PDF up to 10MB</p>
                     </>
                   )}
                 </div>
@@ -218,10 +219,10 @@ const HostKYC = () => {
 
             {/* Address Proof */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="mb-2 block text-sm font-bold text-slate-700">
                 Address Proof (Electricity Bill) *
               </label>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400 transition-colors">
+              <div className="mt-1 flex justify-center rounded-2xl border-2 border-dashed border-blue-200 bg-sky-50/40 px-4 pb-6 pt-5 transition-colors hover:border-sky-400 sm:px-6">
                 <div className="space-y-1 text-center">
                   {addressPreview ? (
                     <div className="relative">
@@ -233,7 +234,7 @@ const HostKYC = () => {
                       <button
                         type="button"
                         onClick={() => removeFile('address')}
-                        className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        className="absolute right-0 top-0 rounded-full bg-rose-500 p-1 text-white transition hover:bg-rose-600"
                       >
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -244,7 +245,7 @@ const HostKYC = () => {
                   ) : (
                     <>
                       <svg
-                        className="mx-auto h-12 w-12 text-gray-400"
+                        className="mx-auto h-12 w-12 text-sky-500"
                         stroke="currentColor"
                         fill="none"
                         viewBox="0 0 48 48"
@@ -257,10 +258,10 @@ const HostKYC = () => {
                           strokeLinejoin="round"
                         />
                       </svg>
-                      <div className="flex text-sm text-gray-600">
+                      <div className="flex text-sm text-slate-600">
                         <label
                           htmlFor="address-proof"
-                          className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
+                          className="relative cursor-pointer rounded-lg bg-white font-bold text-sky-700 hover:text-sky-800 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-sky-500"
                         >
                           <span>Upload a file</span>
                           <input
@@ -274,7 +275,7 @@ const HostKYC = () => {
                         </label>
                         <p className="pl-1">or drag and drop</p>
                       </div>
-                      <p className="text-xs text-gray-500">PNG, JPG, GIF, PDF up to 10MB</p>
+                      <p className="text-xs text-slate-500">PNG, JPG, GIF, PDF up to 10MB</p>
                     </>
                   )}
                 </div>
@@ -285,7 +286,7 @@ const HostKYC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting || !identityProof || !addressProof}
-                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition duration-200 font-medium"
+                className="w-full rounded-full bg-park-blue px-4 py-3 font-bold text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSubmitting ? 'Uploading...' : 'Submit Documents'}
               </button>
@@ -293,7 +294,7 @@ const HostKYC = () => {
           </form>
         </div>
       </div>
-    </div>
+    </main>
   );
 };
 

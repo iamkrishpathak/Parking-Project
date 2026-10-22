@@ -28,13 +28,19 @@ const createAdminUser = async () => {
     if (adminExists) {
       try {
         const isValid = await adminExists.comparePassword(adminPassword);
+        let changed = false;
         if (!isValid) {
           adminExists.password = adminPassword;
-          await adminExists.save();
-          console.log('Admin password synchronized from ADMIN_PASSWORD');
+          changed = true;
         } else {
           console.log('Admin user already exists with valid credentials');
         }
+        if (!adminExists.emailVerified) {
+          adminExists.emailVerified = true;
+          changed = true;
+        }
+        if (changed) await adminExists.save();
+        if (!isValid) console.log('Admin password synchronized from ADMIN_PASSWORD');
       } catch (error) {
         console.error('Error verifying existing admin password:', error);
         adminExists.password = adminPassword;
@@ -52,6 +58,7 @@ const createAdminUser = async () => {
       phone: '0000000000',
       role: 'admin',
       isVerified: true,
+      emailVerified: true,
       kycStatus: 'approved',
     });
 

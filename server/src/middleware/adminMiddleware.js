@@ -1,12 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-
-const getJwtSecret = () => {
-  if (!process.env.JWT_SECRET) {
-    return 'secret123';
-  }
-  return process.env.JWT_SECRET;
-};
+const getJwtSecret = require('../utils/jwtSecret');
 
 // Admin-only middleware with additional security
 const adminMiddleware = async (req, res, next) => {

@@ -6,9 +6,11 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import VerifyEmail from './pages/VerifyEmail';
 import HostDashboard from './pages/HostDashboard';
 import DriverDashboard from './pages/DriverDashboard';
 import DriverProfile from './pages/DriverProfile';
+import HostProfile from './pages/HostProfile';
 import HostKYC from './pages/HostKYC';
 import AdminDashboard from './pages/AdminDashboard';
 import ScrollDemo from './pages/ScrollDemo';
@@ -26,7 +28,9 @@ const App = () => (
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/host" element={<HostDashboard />} />
+        <Route path="/host/profile" element={<HostProfile />} />
         <Route path="/host-kyc" element={<HostKYC />} />
         <Route path="/driver" element={<DriverDashboard />} />
         <Route path="/driver/profile" element={<DriverProfile />} />

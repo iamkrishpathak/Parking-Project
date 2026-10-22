@@ -1,3 +1,42 @@
 .App {
   min-height: 100vh;
+  background-color: #f8fbff;
+  color: #050505;
+}
+
+.App input:not([type='file']):not([type='checkbox']):not([type='radio']),
+.App select,
+.App textarea {
+  border-color: #dbeafe;
+  border-radius: 1rem;
+  background-color: #fff;
+  color: #0f172a;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.App input:not([type='file']):not([type='checkbox']):not([type='radio']):focus,
+.App select:focus,
+.App textarea:focus {
+  border-color: #38bdf8;
+  outline: none;
+  box-shadow: 0 0 0 4px rgb(224 242 254 / 90%);
+}
+
+.App :is(section, article, aside)[class*='bg-white'][class*='rounded'] {
+  border-color: #dbeafe;
+}
+
+.App div[class*='bg-white'][class*='rounded'][class*='shadow'] {
+  border-color: #dbeafe;
+  box-shadow: 0 12px 36px rgb(8 112 184 / 8%);
+}
+
+.App button,
+.App a {
+  transition-duration: 160ms;
+}
+
+.App :is(button, a):focus-visible {
+  outline: 3px solid rgb(56 189 248 / 45%);
+  outline-offset: 3px;
 }

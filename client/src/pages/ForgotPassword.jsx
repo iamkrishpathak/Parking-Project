@@ -25,8 +25,8 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-gradient-to-br from-park-sky via-white to-emerald-50 flex items-center px-6 py-12">
-      <div className="max-w-md mx-auto w-full bg-white rounded-3xl p-8 shadow-xl border border-slate-100">
+    <div className="flex min-h-[calc(100svh-4.5rem)] items-start bg-gradient-to-br from-white via-blue-50 to-white px-4 py-6 sm:items-center sm:px-6 sm:py-10">
+      <div className="mx-auto w-full max-w-md rounded-[1.5rem] border border-blue-100 bg-white p-5 shadow-xl shadow-blue-100/70 sm:rounded-[2rem] sm:p-8">
         <div className="mb-6">
           <h2 className="text-2xl font-black text-park-navy">Forgot your password?</h2>
           <p className="text-sm text-slate-500 mt-2">Enter the email address on your account and we’ll send you a reset link.</p>
@@ -40,7 +40,7 @@ const ForgotPassword = () => {
               autoComplete="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2"
+              className="w-full border border-blue-100 rounded-2xl px-4 py-3"
               required
             />
           </div>
@@ -49,7 +49,7 @@ const ForgotPassword = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-full bg-park-blue text-white font-semibold py-3 hover:bg-indigo-600 disabled:opacity-70"
+            className="w-full rounded-full bg-park-blue text-white font-semibold py-3 hover:bg-sky-500 disabled:opacity-70"
           >
             {loading ? 'Sending...' : 'Send reset link'}
           </button>

@@ -209,7 +209,7 @@ exports.getAllParkingSpaces = async (req, res) => {
     const search = String(req.query.search || '').trim().slice(0, 100);
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
     const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
-    const filter = status ? { verificationStatus: status } : {};
+    const filter = status ? { verificationStatus: status, isArchived: { $ne: true } } : { isArchived: { $ne: true } };
     if (status && !['draft', 'pending', 'under_review', 'action_required', 'approved', 'rejected'].includes(status)) {
       return res.status(400).json({ message: 'Invalid listing verification status' });
     }

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../api/client';
+import api, { getApiAssetUrl } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import SpaceCard from '../components/SpaceCard';
 import MapView from '../components/MapView';
 import { getStates, getCities, getPlaces, formatAddress } from '../data/locations';
+import { ArrowRight, Building2, CheckCircle2, CircleDollarSign, Clock3, ImagePlus, LoaderCircle, MapPin, ShieldCheck, Trash2 } from 'lucide-react';
 
 const defaultSlot = {
   day: '',
@@ -54,6 +55,9 @@ const HostDashboard = () => {
   });
   const [currentEvidence, setCurrentEvidence] = useState([]);
   const [editingSpaceId, setEditingSpaceId] = useState(null);
+  const [deletingSpaceId, setDeletingSpaceId] = useState(null);
+  const [uploadingPhotosSpaceId, setUploadingPhotosSpaceId] = useState('');
+  const [listingPhotoUploadMessage, setListingPhotoUploadMessage] = useState({ spaceId: '', text: '', error: false });
   const photosInputRef = useRef(null);
   const authorizationInputRef = useRef(null);
 
@@ -83,6 +87,29 @@ const HostDashboard = () => {
       setOfflineCount(counts);
     } catch (error) {
       console.error(error);
+    }
+  };
+
+  const uploadListingPhotos = async (space, selectedFiles, input) => {
+    const files = Array.from(selectedFiles || []).slice(0, 5);
+    if (!files.length) return;
+    const uploadData = new FormData();
+    files.forEach((file) => uploadData.append('photos', file));
+    setUploadingPhotosSpaceId(space._id);
+    setListingPhotoUploadMessage({ spaceId: space._id, text: 'Uploading photos…', error: false });
+    try {
+      const { data } = await api.post(`/api/spaces/${space._id}/listing-photos`, uploadData);
+      await fetchSpaces();
+      setListingPhotoUploadMessage({ spaceId: space._id, text: data.message || 'Photos added. Drivers can see them now.', error: false });
+    } catch (error) {
+      setListingPhotoUploadMessage({
+        spaceId: space._id,
+        text: error.response?.data?.message || 'Unable to upload photos. Please try again.',
+        error: true,
+      });
+    } finally {
+      setUploadingPhotosSpaceId('');
+      if (input) input.value = '';
     }
   };
 
@@ -187,14 +214,39 @@ const HostDashboard = () => {
   }, [socket, isHost, user]);
 
   const handleDeleteBooking = async (id) => {
-    if (!window.confirm('Delete booking? This cannot be undone.')) return;
+    if (!window.confirm('Cancel this future booking? The booking will be removed from active reservations.')) return;
     try {
       await api.delete(`/api/bookings/${id}`);
       setBookings((prev) => prev.filter((b) => b._id !== id));
       fetchSummary();
     } catch (err) {
-      console.error('Delete failed', err);
-      alert('Unable to delete booking');
+      console.error('Cancellation failed', err);
+      alert(err.response?.data?.message || 'Unable to cancel booking');
+    }
+  };
+
+  const handleRemoveListing = async (space) => {
+    const title = space.title || space.address || 'this listing';
+    const confirmed = window.confirm(
+      `Remove “${title}” from your listings? Drivers will no longer see it. Existing booking records will be kept.`
+    );
+    if (!confirmed) return;
+
+    setDeletingSpaceId(space._id);
+    try {
+      const { data } = await api.delete(`/api/spaces/${space._id}`);
+      setSpaces((current) => current.filter((item) => item._id !== space._id));
+      setOfflineCount((current) => {
+        const next = { ...current };
+        delete next[space._id];
+        return next;
+      });
+      if (editingSpaceId === space._id) resetListingForm();
+      setMessage(data.message || 'Listing removed. Existing booking records were preserved.');
+    } catch (error) {
+      window.alert(error.response?.data?.message || 'Unable to remove this listing. Please try again.');
+    } finally {
+      setDeletingSpaceId(null);
     }
   };
 
@@ -326,62 +378,97 @@ const HostDashboard = () => {
 
   if (!isHost) {
     return (
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16">
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 md:p-10 flex flex-col md:flex-row gap-10 items-center">
-          <div className="flex-1 space-y-4 text-center md:text-left">
-            <h2 className="text-3xl md:text-4xl font-black text-park-navy">
-              Become a PARKBANDHU Host
-            </h2>
-            <p className="text-slate-500 text-sm md:text-base">
-              List your private parking bays, housing society spots, or office lots and earn from
-              every hour they stay occupied.
-            </p>
-            <ul className="text-left text-sm text-slate-600 space-y-2 inline-block">
-              <li>• Simple onboarding and one-time setup.</li>
-              <li>• You control pricing and availability.</li>
-              <li>• Drivers discover you through live search.</li>
-            </ul>
-            {user && (
-              <p className="pt-2 text-sm text-slate-500">
-                You are signed in as a {user.role}. Host features require an account registered as a host.
-              </p>
-            )}
-            <div className="pt-4 flex flex-wrap items-center justify-center md:justify-start gap-3">
-              <Link
-                to="/register?role=host"
-                className="px-6 py-3 rounded-full bg-park-blue text-white font-semibold"
-              >
-                {user ? 'Create a host account' : 'Create host account'}
-              </Link>
-              {!user && (
-                <Link
-                  to="/login?role=host"
-                  className="px-6 py-3 text-sm font-semibold text-park-blue underline underline-offset-4"
-                >
-                  Login as host
-                </Link>
-              )}
+      <main className="min-h-[calc(100vh-5rem)] bg-gradient-to-br from-white via-blue-50 to-white px-4 py-12 sm:px-6 lg:py-16">
+        <div className="mx-auto max-w-6xl space-y-7">
+          <section className="relative isolate overflow-hidden rounded-[2rem] border border-blue-100 bg-gradient-to-br from-white via-sky-50 to-cyan-50 p-6 shadow-sm sm:p-10">
+            <div aria-hidden="true" className="absolute -right-12 -top-20 -z-10 h-64 w-64 rounded-full bg-sky-200/40 blur-3xl" />
+            <div className="grid items-center gap-8 lg:grid-cols-[1.1fr_.9fr] lg:gap-12">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-white/90 px-3 py-1.5 text-xs font-extrabold uppercase tracking-[.16em] text-sky-700 shadow-sm">
+                  <Building2 size={15} /> ParkBandhu for hosts
+                </div>
+                <h1 className="mt-5 max-w-2xl text-4xl font-black leading-tight tracking-tight text-park-navy sm:text-5xl">
+                  Put your parking space to work.
+                </h1>
+                <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
+                  List a driveway, society bay, or office lot. Set your rates and availability, then manage bookings from one simple dashboard.
+                </p>
+                {user && (
+                  <p className="mt-4 inline-flex items-start gap-2 rounded-2xl border border-blue-100 bg-white/80 px-4 py-3 text-sm leading-5 text-slate-600">
+                    <ShieldCheck size={17} className="mt-0.5 shrink-0 text-sky-600" />
+                    You’re signed in as a {user.role}. Use a host account to manage listings.
+                  </p>
+                )}
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Link to="/register?role=host" className="inline-flex items-center gap-2 rounded-full bg-park-blue px-6 py-3 text-sm font-bold text-white shadow-md shadow-sky-100 transition hover:bg-sky-500">
+                    Register as a host <ArrowRight size={16} />
+                  </Link>
+                  <Link to="/login?role=host" className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white px-6 py-3 text-sm font-bold text-sky-700 transition hover:bg-sky-50">
+                    Sign in as a host
+                  </Link>
+                </div>
+              </div>
+
+              <aside className="rounded-[1.75rem] border border-white bg-white/90 p-5 shadow-lg shadow-blue-100/50 backdrop-blur-sm sm:p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-extrabold uppercase tracking-[.18em] text-sky-600">Your host toolkit</p>
+                    <h2 className="mt-1 text-xl font-black text-park-navy">Everything in one place</h2>
+                  </div>
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-700"><Building2 size={21} /></span>
+                </div>
+                <div className="mt-5 space-y-3">
+                  <div className="flex items-center gap-3 rounded-2xl border border-blue-50 bg-sky-50/60 p-3.5">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-sky-700 shadow-sm"><CircleDollarSign size={19} /></span>
+                    <div><p className="text-sm font-bold text-park-navy">Choose your rates</p><p className="text-xs text-slate-500">Set prices for each vehicle type.</p></div>
+                  </div>
+                  <div className="flex items-center gap-3 rounded-2xl border border-blue-50 bg-sky-50/60 p-3.5">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-sky-700 shadow-sm"><Clock3 size={19} /></span>
+                    <div><p className="text-sm font-bold text-park-navy">Control availability</p><p className="text-xs text-slate-500">Choose when drivers can book.</p></div>
+                  </div>
+                  <div className="flex items-center gap-3 rounded-2xl border border-blue-50 bg-sky-50/60 p-3.5">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-sky-700 shadow-sm"><CheckCircle2 size={19} /></span>
+                    <div><p className="text-sm font-bold text-park-navy">Track your bookings</p><p className="text-xs text-slate-500">See reservations and listing status.</p></div>
+                  </div>
+                </div>
+              </aside>
             </div>
-          </div>
-          <div className="flex-1 w-full">
-            <div className="rounded-3xl border border-dashed border-emerald-300 bg-emerald-50/60 p-6 text-center">
-              <p className="text-xs font-semibold text-emerald-700 uppercase tracking-[0.25em] mb-2">
-                Host preview
-              </p>
-              <p className="text-sm text-slate-600">
-                As a host you'll see a full dashboard here with your listed spaces, earnings, and
-                upcoming bookings.
-              </p>
-            </div>
-          </div>
+          </section>
+
+          <section aria-label="How hosting works" className="grid gap-4 md:grid-cols-3">
+            {[
+              { title: 'Create your listing', body: 'Add the location, vehicle capacity, pricing, and clear photos.', icon: MapPin },
+              { title: 'Get verified', body: 'Submit property evidence so drivers can trust your space.', icon: ShieldCheck },
+              { title: 'Welcome drivers', body: 'Manage approved listings and keep an eye on bookings.', icon: CheckCircle2 },
+            ].map(({ title, body, icon: Icon }, index) => (
+              <article key={title} className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm sm:p-6">
+                <div className="flex items-center justify-between">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-sky-700"><Icon size={20} /></span>
+                  <span className="text-sm font-extrabold text-sky-300">0{index + 1}</span>
+                </div>
+                <h3 className="mt-4 font-extrabold text-park-navy">{title}</h3>
+                <p className="mt-1.5 text-sm leading-6 text-slate-500">{body}</p>
+              </article>
+            ))}
+          </section>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10 space-y-10">
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+    <main className="min-h-[calc(100vh-5rem)] bg-gradient-to-br from-white via-blue-50 to-white px-4 py-8 sm:px-6 lg:py-12">
+    <div className="mx-auto max-w-6xl space-y-8">
+      <section className="relative isolate overflow-hidden rounded-[2rem] border border-blue-100 bg-gradient-to-br from-white via-sky-50 to-cyan-50 p-6 shadow-sm sm:p-8">
+        <div aria-hidden="true" className="absolute -right-10 -top-16 -z-10 h-52 w-52 rounded-full bg-sky-200/40 blur-3xl" />
+        <p className="text-xs font-extrabold uppercase tracking-[.2em] text-sky-700">Host dashboard</p>
+        <h1 className="mt-2 text-3xl font-black tracking-tight text-park-navy sm:text-4xl">Manage your parking space</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">Create a listing, keep availability current, and follow the bookings made by drivers.</p>
+        <Link to="/host/profile" className="mt-5 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white px-5 py-2.5 text-sm font-bold text-sky-700 shadow-sm transition hover:bg-sky-50">
+          Host profile <span aria-hidden="true">→</span>
+        </Link>
+      </section>
+      <div className="rounded-[2rem] border border-blue-100 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-2xl font-black text-park-navy mb-2">{editingSpaceId ? 'Update a Parking Space' : 'List a Parking Space'}</h2>
         {kycStatus !== 'approved' && (
           <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
@@ -601,14 +688,16 @@ const HostDashboard = () => {
             <div className="mb-1 flex justify-between text-xs text-slate-600"><span>Uploading verification evidence…</span><span>{uploadProgress}%</span></div>
             <div className="h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-park-blue transition-all" style={{ width: `${uploadProgress}%` }} /></div>
           </div>}
-          <button
-            type="submit"
-            disabled={loading || kycStatus !== 'approved'}
-            className="px-6 py-3 rounded-full bg-park-mint text-park-navy font-semibold hover:bg-emerald-400 disabled:opacity-60"
-          >
-            {loading ? 'Submitting...' : editingSpaceId ? 'Save changes and resubmit' : 'Submit for verification'}
-          </button>
-          {editingSpaceId && <button type="button" onClick={resetListingForm} className="ml-3 px-6 py-3 rounded-full border border-slate-200 text-slate-600 font-semibold">Cancel edit</button>}
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <button
+              type="submit"
+              disabled={loading || kycStatus !== 'approved'}
+              className="min-h-12 rounded-full bg-park-blue px-6 py-3 font-bold text-white hover:bg-sky-500 disabled:opacity-60"
+            >
+              {loading ? 'Submitting...' : editingSpaceId ? 'Save changes and resubmit' : 'Submit for verification'}
+            </button>
+            {editingSpaceId && <button type="button" onClick={resetListingForm} className="min-h-12 rounded-full border border-slate-200 px-6 py-3 font-semibold text-slate-600">Cancel edit</button>}
+          </div>
         </form>
       </div>
       <div className="space-y-4">
@@ -628,12 +717,48 @@ const HostDashboard = () => {
                       {space.verification?.status === 'pending' && <p className="mt-1 text-sm text-slate-600">Your listing is hidden from drivers while it is reviewed.</p>}
                       {space.verification?.status === 'approved' && <p className="mt-1 text-sm text-slate-600">Editing will hide this listing from drivers until you resubmit it and it is approved again.</p>}
                     </div>
-                    {['rejected', 'action_required', 'draft', 'approved'].includes(space.verification?.status) && (
-                      <button type="button" onClick={() => startEditingSpace(space)} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-park-blue shadow-sm">Edit and resubmit</button>
-                    )}
+                    <div className="ml-auto flex items-center gap-2">
+                      {['rejected', 'action_required', 'draft', 'approved'].includes(space.verification?.status) && (
+                        <button type="button" onClick={() => startEditingSpace(space)} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-park-blue shadow-sm">Edit and resubmit</button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveListing(space)}
+                        disabled={deletingSpaceId === space._id}
+                        aria-label={`Remove listing ${space.title || space.address}`}
+                        title="Remove listing"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-rose-200 bg-white text-rose-600 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {deletingSpaceId === space._id ? <LoaderCircle size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                      </button>
+                    </div>
                   </div>
                   {space.evidenceFiles?.length > 0 && <p className="mt-2 text-xs text-slate-600">Evidence on file: {space.evidenceFiles.map((file) => file.originalName).join(', ')}</p>}
                 </div>
+                {space.verification?.status === 'approved' && <section className="rounded-xl border border-blue-100 bg-white p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-park-navy">Listing photos</h4>
+                      <p className="mt-1 text-xs text-slate-500">Add up to 5 display photos. They appear in driver search as soon as the upload finishes, without another review.</p>
+                    </div>
+                    <label className={`inline-flex cursor-pointer items-center gap-2 rounded-full bg-park-blue px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-500 ${uploadingPhotosSpaceId === space._id ? 'cursor-wait opacity-60' : ''}`}>
+                      {uploadingPhotosSpaceId === space._id ? <LoaderCircle size={16} className="animate-spin" /> : <ImagePlus size={16} />}
+                      {uploadingPhotosSpaceId === space._id ? 'Uploading…' : 'Add photos'}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        multiple
+                        disabled={Boolean(uploadingPhotosSpaceId)}
+                        onChange={(event) => uploadListingPhotos(space, event.target.files, event.target)}
+                        className="sr-only"
+                      />
+                    </label>
+                  </div>
+                  {space.photos?.length > 0 && <div className="mt-3 flex flex-wrap gap-2">
+                    {space.photos.slice(0, 5).map((photo, index) => <img key={`${space._id}-${photo}-${index}`} src={getApiAssetUrl(photo)} alt={`${space.title || 'Parking space'} view ${index + 1}`} loading="lazy" className="h-16 w-20 rounded-lg border border-slate-200 object-cover" />)}
+                  </div>}
+                  {listingPhotoUploadMessage.spaceId === space._id && <p role={listingPhotoUploadMessage.error ? 'alert' : 'status'} className={`mt-2 text-sm ${listingPhotoUploadMessage.error ? 'text-rose-600' : 'text-emerald-700'}`}>{listingPhotoUploadMessage.text}</p>}
+                </section>}
                 {space.verification?.status === 'approved' && <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                   <h4 className="text-sm font-bold text-blue-900 mb-3">Walk-in Manager</h4>
                   <div className="flex items-center justify-between mb-3">
@@ -674,7 +799,7 @@ const HostDashboard = () => {
           <span>Bookings ({bookings.length})</span>
           <button
             onClick={fetchBookings}
-            className="ml-4 px-3 py-1 rounded-full bg-park-blue text-white text-xs font-semibold hover:bg-indigo-600 transition"
+            className="ml-4 px-3 py-1 rounded-full bg-park-blue text-white text-xs font-semibold hover:bg-sky-500 transition"
             title="Refresh bookings"
           >
             Refresh
@@ -750,7 +875,7 @@ const HostDashboard = () => {
                       <p className="text-xs text-slate-400">ID: {booking.razorpayPaymentId}</p>
                     )}
                     <div className="pt-2">
-                      <button onClick={() => handleDeleteBooking(booking._id)} className="text-xs px-3 py-1 rounded-full bg-rose-500 text-white">Delete</button>
+                      <button onClick={() => handleDeleteBooking(booking._id)} className="text-xs px-3 py-1 rounded-full bg-rose-500 text-white">Cancel booking</button>
                     </div>
                   </div>
                 </div>
@@ -762,8 +887,8 @@ const HostDashboard = () => {
 
       {/* KYC Verification Modal */}
       {showKycModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/55 p-3 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="my-auto w-full max-w-md rounded-[1.5rem] border border-blue-100 bg-white p-5 shadow-2xl sm:rounded-[2rem] sm:p-6">
             <div className="text-center">
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-amber-100 mb-4">
                 <svg className="h-6 w-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -774,10 +899,10 @@ const HostDashboard = () => {
               <p className="text-sm text-gray-600 mb-6">
                 To ensure safety, hosts must verify their ID before listing.
               </p>
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row">
                 <button
                   onClick={() => setShowKycModal(false)}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="flex-1 rounded-full border border-blue-100 px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-sky-50"
                 >
                   Cancel
                 </button>
@@ -786,7 +911,7 @@ const HostDashboard = () => {
                     setShowKycModal(false);
                     navigate('/host-kyc');
                   }}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                  className="flex-1 rounded-full bg-park-blue px-4 py-3 text-sm font-bold text-white transition hover:bg-sky-500"
                 >
                   Verify Identity
                 </button>
@@ -796,6 +921,7 @@ const HostDashboard = () => {
         </div>
       )}
     </div>
+    </main>
   );
 };
 

@@ -58,6 +58,9 @@ const spaceSchema = new mongoose.Schema(
     pricingByVehicle: { type: vehicleAmountsSchema, default: () => ({}) },
     capacityByVehicle: { type: vehicleAmountsSchema, default: () => ({}) },
     currentBookings: { type: vehicleAmountsSchema, default: () => ({}) },
+    // Short-lived atomic mutex used while validating and creating a booking.
+    bookingLockToken: { type: String, select: false },
+    bookingLockUntil: { type: Date, select: false },
     availability: { type: [availabilitySchema], default: [] },
     availabilitySchedule: { type: [availabilitySchema], default: [] },
     photos: { type: [String], default: [] },
@@ -82,6 +85,7 @@ const spaceSchema = new mongoose.Schema(
     submissionVersion: { type: Number, default: 0 },
     reviewHistory: { type: [reviewEntrySchema], default: [] },
     isPublished: { type: Boolean, default: false, index: true },
+    isArchived: { type: Boolean, default: false, index: true },
     // Kept for compatibility with older clients/data. New authorization uses verificationStatus.
     isVerified: { type: Boolean, default: false },
     accessType: { type: String, enum: ['self_service', 'meet_greet', 'marshal'], default: 'meet_greet' },

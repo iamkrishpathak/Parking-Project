@@ -150,19 +150,23 @@ const MapView = ({ spaces = [], center = [28.6139, 77.209], height = '420px' }) 
     validSpaces.forEach(({ space, position }) => {
       const title = space.address || 'Available parking';
       const markerContent = document.createElement('div');
-      markerContent.textContent = 'P';
+      markerContent.setAttribute('role', 'img');
       markerContent.setAttribute('aria-label', title);
-      markerContent.style.cssText =
-        'width:32px;height:32px;display:flex;align-items:center;justify-content:center;' +
-        'border:2px solid #ffffff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);' +
-        'background:#38bdf8;color:#082f49;font:700 14px Inter,system-ui,sans-serif;' +
-        'box-shadow:0 2px 8px rgba(15,23,42,.28);';
+      markerContent.style.cssText = 'display:block;width:42px;height:54px;cursor:pointer;filter:drop-shadow(0 2px 4px rgba(15,23,42,.3));';
+      markerContent.innerHTML =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="42" height="54" viewBox="0 0 42 54" fill="none" aria-hidden="true">' +
+        '<path d="M21 51C16.3 44.4 4 32.5 4 20C4 10.6 11.6 3 21 3C30.4 3 38 10.6 38 20C38 32.5 25.7 44.4 21 51Z" fill="#38BDF8" stroke="white" stroke-width="3" stroke-linejoin="round"/>' +
+        '<circle cx="21" cy="20" r="11" fill="white"/>' +
+        '<text x="21" y="20.5" text-anchor="middle" dominant-baseline="central" fill="#075985" font-family="Inter,system-ui,sans-serif" font-size="14" font-weight="800">P</text>' +
+        '</svg>';
 
       const marker = new markerLibrary.AdvancedMarkerElement({
         map,
         position,
         title,
         content: markerContent,
+        anchorLeft: '-50%',
+        anchorTop: '-100%',
         gmpClickable: true,
       });
 
